@@ -1,5 +1,15 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "mulescope",
+  "version": "1.0.0",
+  "description": "Turn Mule runtime logs into a browsable Postman-style workspace and export a Postman v2.1 collection - entirely in the browser.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/talhakhalidmtk/mulescope.git"
+  },
+  "homepage": "https://github.com/talhakhalidmtk/mulescope",
+  "author": "Talha Khalid <talhakhalidmtk@gmail.com> (https://talhakhalidmtk.me)",
+  "license": "MIT",
+  "keywords": ["mulesoft", "mule", "cloudhub", "postman", "log-parser", "api", "devtools"],
   "private": true,
   "sideEffects": false,
   "type": "module",
