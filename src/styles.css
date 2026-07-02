@@ -1,0 +1,178 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+
+  --color-method-get: var(--method-get);
+  --color-method-post: var(--method-post);
+  --color-method-put: var(--method-put);
+  --color-method-delete: var(--method-delete);
+  --color-method-patch: var(--method-patch);
+  --color-method-head: var(--method-head);
+  --color-method-options: var(--method-options);
+
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Light - clean, minimal dev tool. Near-white surfaces, dark-navy text and
+   chrome, thin borders instead of dark-mode elevation steps. Color is spent
+   only where it's meaningful: HTTP method badges and the Postman-orange brand. */
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.20 0.02 262);
+
+  --surface: oklch(0.985 0.002 262);
+  --surface-2: oklch(0.96 0.004 262);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.20 0.02 262);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.20 0.02 262);
+
+  --primary: oklch(0.22 0.03 262);
+  --primary-foreground: oklch(0.99 0.001 262);
+
+  --secondary: oklch(0.96 0.004 262);
+  --secondary-foreground: oklch(0.20 0.02 262);
+
+  --muted: oklch(0.96 0.004 262);
+  --muted-foreground: oklch(0.50 0.03 258);
+
+  --accent: oklch(0.94 0.006 262);
+  --accent-foreground: oklch(0.20 0.02 262);
+
+  /* Postman-orange brand accent, used sparingly (logo, POST method, small highlights) */
+  --brand: oklch(0.64 0.19 42);
+  --brand-foreground: oklch(0.99 0.001 262);
+
+  /* Cool counterpart to --brand - used for "signal"/parsed-data moments */
+  --signal: oklch(0.55 0.13 199);
+  --signal-foreground: oklch(0.99 0.001 262);
+
+  --destructive: oklch(0.58 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.90 0.006 262);
+  --input: oklch(0.88 0.007 262);
+  --ring: oklch(0.64 0.19 42);
+
+  /* HTTP method colors - saturated enough to read on white */
+  --method-get:     oklch(0.55 0.15 148);
+  --method-post:    oklch(0.62 0.17 45);
+  --method-put:     oklch(0.55 0.15 231);
+  --method-delete:  oklch(0.58 0.20 23);
+  --method-patch:   oklch(0.55 0.18 304);
+  --method-head:    oklch(0.52 0.09 199);
+  --method-options: oklch(0.48 0.02 262);
+
+  --status-success: oklch(0.55 0.15 148);
+  --status-warning: oklch(0.62 0.17 45);
+  --status-error:   oklch(0.58 0.20 23);
+
+  --sidebar: oklch(0.985 0.002 262);
+  --sidebar-foreground: oklch(0.20 0.02 262);
+  --sidebar-primary: oklch(0.22 0.03 262);
+  --sidebar-primary-foreground: oklch(0.99 0.001 262);
+  --sidebar-accent: oklch(0.94 0.006 262);
+  --sidebar-accent-foreground: oklch(0.20 0.02 262);
+  --sidebar-border: oklch(0.90 0.006 262);
+  --sidebar-ring: oklch(0.64 0.19 42);
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-signal: var(--signal);
+  --color-signal-foreground: var(--signal-foreground);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    color-scheme: light;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer utilities {
+  /* Faint technical grid, used behind hero/marketing sections */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, black 40%, transparent 100%);
+  }
+
+  @keyframes blink-caret {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+  .animate-caret {
+    animation: blink-caret 1s step-end infinite;
+  }
+
+  @keyframes flow-dash {
+    to { stroke-dashoffset: -16; }
+  }
+  .animate-flow {
+    animation: flow-dash 0.8s linear infinite;
+  }
+}

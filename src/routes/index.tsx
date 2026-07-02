@@ -1,0 +1,638 @@
+import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  Download,
+  FileJson,
+  FileSearch,
+  FolderTree,
+  Loader2,
+  Radar,
+  Terminal,
+  Wand2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UploadDropzone } from "@/components/import/UploadDropzone";
+import { MethodBadge } from "@/components/workspace/MethodBadge";
+import { parseAsync } from "@/lib/parse-async";
+import { setCollection } from "@/lib/log-store";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "MuleScope - Mule log analyzer" },
+      {
+        name: "description",
+        content:
+          "Analyze Mule runtime logs, browse the extracted endpoints in a Postman-like workspace, and export a Postman v2.1 collection.",
+      },
+    ],
+  }),
+  component: Index,
+});
+
+// ─── Sample log ───────────────────────────────────────────────────────────────
+
+const SAMPLE = `2026-06-29T09:14:00.100Z DEBUG [wrk01] HTTP_Listener_config http.listener.01 SelectorRunner - LISTENER
+GET /api/orders/ORD-9901/items HTTP/1.1
+Accept: application/json
+X-Correlation-Id: a1b2c3d4-0001-0001-0001-000000000001
+X-Forwarded-Proto: https
+X-Forwarded-Host: x-acme-orders-api.cloudhub.io
+Host: x-acme-orders-api.internal.svc
+
+2026-06-29T09:14:00.110Z INFO [wrk01] LoggerMessageProcessor event:a1b2c3d4-0001-0001-0001-000000000001 [MuleRuntime].uber.100 @abc - [Environment: prod] [Application: x-acme-orders-api] [Flow: x-get-order-items-flow] [Transaction Id: a1b2c3d4-0001-0001-0001-000000000001] - Before calling backend
+2026-06-29T09:14:00.120Z DEBUG [wrk01] backend-config event:a1b2c3d4-0001-0001-0001-000000000001 [x-acme-orders-api].http.requester.backend-config.01 SelectorRunner - REQUESTER
+GET /api/orders/ORD-9901/items HTTP/1.1
+x-correlation-id: a1b2c3d4-0001-0001-0001-000000000001
+Host: s-acme-backend-api.cloudhub.io:443
+User-Agent: AHC/1.0
+
+ spanId=aabbccdd
+
+2026-06-29T09:14:00.310Z DEBUG [wrk01] backend-config event:a1b2c3d4-0001-0001-0001-000000000001 [x-acme-orders-api].http.requester.backend-config.01 SelectorRunner - REQUESTER
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: 89
+
+{"items":[{"id":"ITM-1","name":"Widget","qty":3,"price":9.99}]} spanId=aabbccdd
+
+2026-06-29T09:14:01.000Z DEBUG [wrk01] HTTP_Listener_config http.listener.01 SelectorRunner - LISTENER
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+X-Correlation-Id: b2c3d4e5-0002-0002-0002-000000000002
+X-Forwarded-Proto: https
+X-Forwarded-Host: x-acme-orders-api.cloudhub.io
+Host: x-acme-orders-api.internal.svc
+
+{"customerId":"CUST-42","items":[{"sku":"WGT-001","qty":2},{"sku":"WGT-002","qty":1}],"shippingAddress":{"line1":"123 Main St","city":"Dubai","country":"AE"}}
+
+2026-06-29T09:14:01.010Z INFO [wrk01] LoggerMessageProcessor event:b2c3d4e5-0002-0002-0002-000000000002 [MuleRuntime].uber.101 @abc - [Environment: prod] [Application: x-acme-orders-api] [Flow: x-create-order-flow] [Transaction Id: b2c3d4e5-0002-0002-0002-000000000002] - Creating new order
+2026-06-29T09:14:01.020Z DEBUG [wrk01] backend-config event:b2c3d4e5-0002-0002-0002-000000000002 [x-acme-orders-api].http.requester.backend-config.02 SelectorRunner - REQUESTER
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+Transfer-Encoding: chunked
+x-correlation-id: b2c3d4e5-0002-0002-0002-000000000002
+Host: s-acme-backend-api.cloudhub.io:443
+User-Agent: AHC/1.0
+
+9f
+{"customerId":"CUST-42","items":[{"sku":"WGT-001","qty":2},{"sku":"WGT-002","qty":1}],"shippingAddress":{"line1":"123 Main St","city":"Dubai","country":"AE"}}
+ spanId=11223344
+
+2026-06-29T09:14:01.350Z DEBUG [wrk01] backend-config event:b2c3d4e5-0002-0002-0002-000000000002 [x-acme-orders-api].http.requester.backend-config.02 SelectorRunner - REQUESTER
+HTTP/1.1 201 Created
+Content-Type: application/json
+Content-Length: 122
+
+ spanId=11223344
+
+2026-06-29T09:14:01.351Z DEBUG [wrk01] backend-config event:b2c3d4e5-0002-0002-0002-000000000002 [x-acme-orders-api].http.requester.backend-config.02 SelectorRunner - REQUESTER
+{"id":"ORD-9902","status":"pending","customerId":"CUST-42","totalAmount":59.97,"currency":"USD"} spanId=11223344
+
+2026-06-29T09:14:01.400Z DEBUG [wrk01] HTTP_Listener_config event:b2c3d4e5-0002-0002-0002-000000000002 [MuleRuntime].uber.101 @abc - [x-acme-orders-api].get:\\api\\orders:x-acme-orders-api-config.CPU_INTENSIVE @def SelectorRunner - LISTENER
+HTTP/1.1 201 Created
+Content-Type: application/json
+Content-Length: 122
+
+{"id":"ORD-9902","status":"pending","customerId":"CUST-42","totalAmount":59.97,"currency":"USD"} spanId=11223344
+
+2026-06-29T09:14:02.000Z DEBUG [wrk01] HTTP_Listener_config http.listener.01 SelectorRunner - LISTENER
+DELETE /api/orders/ORD-8800 HTTP/1.1
+Accept: application/json
+X-Correlation-Id: c3d4e5f6-0003-0003-0003-000000000003
+X-Forwarded-Proto: https
+X-Forwarded-Host: x-acme-orders-api.cloudhub.io
+
+2026-06-29T09:14:02.120Z DEBUG [wrk01] backend-config event:c3d4e5f6-0003-0003-0003-000000000003 [x-acme-orders-api].http.requester.backend-config.03 SelectorRunner - REQUESTER
+DELETE /api/orders/ORD-8800 HTTP/1.1
+x-correlation-id: c3d4e5f6-0003-0003-0003-000000000003
+Host: s-acme-backend-api.cloudhub.io:443
+
+ spanId=33445566
+
+2026-06-29T09:14:02.300Z DEBUG [wrk01] backend-config event:c3d4e5f6-0003-0003-0003-000000000003 [x-acme-orders-api].http.requester.backend-config.03 SelectorRunner - REQUESTER
+HTTP/1.1 204 No Content
+Content-Length: 0
+ spanId=33445566`;
+
+// ─── Loading stage types ──────────────────────────────────────────────────────
+
+type Stage = "idle" | "reading" | "parsing" | "building" | "error";
+
+const STAGE_STEPS: Array<{ id: Stage; label: string }> = [
+  { id: "reading",  label: "Reading file" },
+  { id: "parsing",  label: "Parsing log entries" },
+  { id: "building", label: "Building collection" },
+];
+
+function fmtBytes(b: number) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// ─── Loading screen ───────────────────────────────────────────────────────────
+
+function LoadingScreen({
+  stage,
+  fileName,
+  fileSize,
+  error,
+  onReset,
+}: {
+  stage: Stage;
+  fileName: string;
+  fileSize: number;
+  error: string | null;
+  onReset: () => void;
+}) {
+  const activeIdx = STAGE_STEPS.findIndex((s) => s.id === stage);
+
+  return (
+    <main className="flex-1 flex flex-col items-center justify-center px-6 pb-20">
+      <div className="w-full max-w-sm">
+        {/* Icon */}
+        <div className="flex justify-center mb-6">
+          {stage === "error" ? (
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive ring-1 ring-destructive/20">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
+              <Radar className="h-6 w-6 text-primary animate-pulse" />
+            </div>
+          )}
+        </div>
+
+        {/* Title */}
+        <h2 className="text-center text-lg font-semibold tracking-tight text-foreground mb-1">
+          {stage === "error" ? "Analysis failed" : "Analyzing log file"}
+        </h2>
+
+        {/* File info */}
+        <p className="text-center text-xs text-muted-foreground mb-8 font-mono">
+          {fileName}
+          {fileSize > 0 && <span className="text-muted-foreground/60"> · {fmtBytes(fileSize)}</span>}
+        </p>
+
+        {stage === "error" ? (
+          /* Error view */
+          <div className="space-y-4">
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <p className="text-xs text-destructive font-mono break-all">{error}</p>
+            </div>
+            <Button
+              onClick={onReset}
+              variant="outline"
+              className="w-full border-border text-foreground"
+            >
+              Try again
+            </Button>
+          </div>
+        ) : (
+          /* Stage list */
+          <ol className="space-y-3">
+            {STAGE_STEPS.map((step, idx) => {
+              const isDone    = idx < activeIdx;
+              const isActive  = idx === activeIdx;
+              const isPending = idx > activeIdx;
+
+              return (
+                <li key={step.id} className="flex items-center gap-3">
+                  {/* Status icon */}
+                  <div
+                    className={cn(
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] transition-colors duration-300",
+                      isDone   && "bg-status-success/15 text-status-success",
+                      isActive && "bg-primary/15 text-primary",
+                      isPending && "bg-muted/40 text-muted-foreground",
+                    )}
+                  >
+                    {isDone   && <Check className="h-3.5 w-3.5" />}
+                    {isActive && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {isPending && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                  </div>
+
+                  {/* Label */}
+                  <span
+                    className={cn(
+                      "text-sm transition-colors duration-300",
+                      isDone   && "text-muted-foreground line-through decoration-muted-foreground/40",
+                      isActive && "text-foreground font-medium",
+                      isPending && "text-muted-foreground/60",
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+    </main>
+  );
+}
+
+// ─── Hero flow diagram ─────────────────────────────────────────────────────────
+
+function FlowDiagram() {
+  return (
+    <div className="relative">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4">
+        {/* Raw log terminal card */}
+        <div className="rounded-lg border border-border bg-surface overflow-hidden">
+          <div className="flex items-center gap-1.5 px-3 h-8 border-b border-border bg-surface-2/70">
+            <span className="h-2.5 w-2.5 rounded-full bg-status-error/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-status-warning/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-status-success/60" />
+            <span className="ml-2 text-[10px] font-mono text-muted-foreground">mule.log</span>
+          </div>
+          <div className="p-3 font-mono text-[10.5px] leading-relaxed text-foreground/70 space-y-0.5">
+            <p className="text-muted-foreground/70">DEBUG [wrk01] HTTP_Listener_config …</p>
+            <p><span className="text-method-post">POST</span> /api/orders HTTP/1.1</p>
+            <p className="text-muted-foreground/70">Host: x-acme-orders-api…</p>
+            <p className="text-muted-foreground/70">event:b2c3d4e5 SelectorRunner - REQUESTER</p>
+            <p className="text-foreground/60 truncate">{'{"customerId":"CUST-42","items":[…]}'}</p>
+            <p className="text-muted-foreground/70">
+              HTTP/1.1 <span className="text-status-success">201</span> Created
+              <span className="animate-caret text-brand">▍</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Connector */}
+        <div className="flex md:flex-col items-center justify-center gap-2 py-1">
+          <div className="hidden md:block h-px w-6 bg-gradient-to-r from-transparent to-border" />
+          <div className="flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 shrink-0">
+            <Terminal className="h-3 w-3 text-brand" />
+            <span className="text-[10px] font-medium text-brand whitespace-nowrap">MuleScope</span>
+          </div>
+          <ArrowRight className="hidden md:block h-3.5 w-3.5 text-muted-foreground/60 rotate-90 md:rotate-0" />
+          <ArrowRight className="md:hidden h-3.5 w-3.5 text-muted-foreground/60 rotate-90" />
+        </div>
+
+        {/* Extracted collection card */}
+        <div className="rounded-lg border border-border bg-surface overflow-hidden">
+          <div className="flex items-center justify-between px-3 h-8 border-b border-border bg-surface-2/70">
+            <span className="text-[10px] font-mono text-muted-foreground">collection.postman.json</span>
+            <Download className="h-3 w-3 text-muted-foreground/70" />
+          </div>
+          <div className="p-2 space-y-1">
+            {[
+              { m: "POST" as const, name: "Create Order" },
+              { m: "GET" as const, name: "Get Order Items" },
+              { m: "DELETE" as const, name: "Delete Order" },
+            ].map((row) => (
+              <div
+                key={row.name}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 bg-background border border-border/70"
+              >
+                <MethodBadge method={row.m} className="w-10 shrink-0" />
+                <span className="text-[11px] text-foreground/80 truncate">{row.name}</span>
+                <Check className="h-3 w-3 text-status-success ml-auto shrink-0" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Feature cards ──────────────────────────────────────────────────────────────
+
+const FEATURES = [
+  {
+    icon: Radar,
+    title: "LISTENER & REQUESTER parsing",
+    body: "Every inbound and outbound HTTP call is reconstructed from DEBUG trace lines - no regex-fu required.",
+  },
+  {
+    icon: FolderTree,
+    title: "Postman-style workspace",
+    body: "Browse extracted endpoints by folder, filter by method, inspect headers and bodies - a layout you already know.",
+  },
+  {
+    icon: FileJson,
+    title: "Postman v2.1 export",
+    body: "Download a collection that imports cleanly into Postman, requests, responses, and folders intact.",
+  },
+  {
+    icon: Terminal,
+    title: "Copy as cURL",
+    body: "Every request can be copied as a ready-to-run curl command, headers and body included.",
+  },
+];
+
+function FeatureCards() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {FEATURES.map((f) => (
+        <div
+          key={f.title}
+          className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-foreground/20"
+        >
+          <f.icon className="h-5 w-5 text-foreground mb-3" strokeWidth={1.75} />
+          <p className="text-sm font-semibold text-foreground mb-1">{f.title}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{f.body}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+function Index() {
+  const navigate = useNavigate();
+  const [paste, setPaste]     = useState("");
+  const [source, setSource]   = useState<string | null>(null);
+  const [stage, setStage]     = useState<Stage>("idle");
+  const [fileName, setFileName] = useState("");
+  const [fileSize, setFileSize] = useState(0);
+  const [error, setError]     = useState<string | null>(null);
+
+  const run = async (raw: string, name: string, size: number, skipRead: boolean) => {
+    setFileName(name);
+    setFileSize(size);
+    setError(null);
+
+    try {
+      if (!skipRead) {
+        // Stage shown during file.text() - the dropzone already called this,
+        // so for files this stage is brief but visible.
+        setStage("reading");
+        await Promise.resolve(); // yield so React can paint "reading" state
+      }
+
+      setStage("parsing");
+      const collection = await parseAsync(raw, name);
+
+      setStage("building");
+      setCollection(collection);
+
+      // Brief pause so the user sees "Building collection" tick before navigation.
+      await new Promise<void>((r) => setTimeout(r, 250));
+      void navigate({ to: "/workspace" });
+    } catch (err) {
+      setStage("error");
+      setError(String(err));
+    }
+  };
+
+  const handleFile = async (file: File) => {
+    setFileName(file.name);
+    setFileSize(file.size);
+    setStage("reading");
+    setError(null);
+    try {
+      const text = await file.text();
+      await run(text, file.name, file.size, true);
+    } catch (err) {
+      setStage("error");
+      setError(String(err));
+    }
+  };
+
+  const handleAnalyze = () => {
+    const text = paste.trim() || SAMPLE;
+    const name = source ?? "pasted.log";
+    void run(text, name, text.length, true);
+  };
+
+  const handleQuickStart = () => {
+    void run(SAMPLE, "sample.log", SAMPLE.length, true);
+  };
+
+  const reset = () => {
+    setStage("idle");
+    setError(null);
+  };
+
+  // ── Loading / error screen ──────────────────────────────────────────────────
+  if (stage !== "idle") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <LoadingScreen
+          stage={stage}
+          fileName={fileName}
+          fileSize={fileSize}
+          error={error}
+          onReset={reset}
+        />
+        <Footer />
+      </div>
+    );
+  }
+
+  // ── Import screen ───────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+
+      <main className="flex-1 w-full">
+        {/* Hero */}
+        <section className="relative pt-16 pb-14 px-6 border-b border-border/60 overflow-hidden">
+          <div className="absolute inset-0 bg-grid pointer-events-none" aria-hidden="true" />
+          <div className="relative mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
+            <div>
+              <div className="flex items-center gap-2 mb-5">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  CloudHub 2.0
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  CloudHub 1.0
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  Postman v2.1
+                </span>
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4 leading-[1.1]">
+                Every API call your Mule app made,{" "}
+                <span className="text-brand">extracted from the log.</span>
+              </h1>
+              <p className="text-base text-muted-foreground max-w-md mb-7">
+                Drop in a Mule runtime log. MuleScope finds every LISTENER and
+                REQUESTER call, rebuilds the request and response, and gives you
+                a Postman-style workspace - plus a real collection export.
+              </p>
+              <div className="flex items-center gap-4">
+                <Button
+                  size="lg"
+                  onClick={handleQuickStart}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  <Wand2 className="h-4 w-4" />
+                  Try it with a sample log
+                </Button>
+                <a
+                  href="#import"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
+                >
+                  or bring your own
+                </a>
+              </div>
+            </div>
+
+            <FlowDiagram />
+          </div>
+        </section>
+
+        {/* Features */}
+        <section className="px-6 py-14 border-b border-border/60">
+          <div className="mx-auto max-w-5xl">
+            <FeatureCards />
+          </div>
+        </section>
+
+        {/* Import */}
+        <section id="import" className="px-6 py-14 scroll-mt-12">
+          <div className="mx-auto max-w-2xl">
+            <p className="text-center text-sm font-medium text-muted-foreground mb-5">
+              Analyze a log
+            </p>
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <Tabs defaultValue="upload">
+                <div className="border-b border-border px-2">
+                  <TabsList className="h-11 bg-transparent p-0 gap-1 justify-start">
+                    <TabsTrigger
+                      value="upload"
+                      className="h-9 rounded-md px-3 text-xs data-[state=active]:bg-accent data-[state=active]:shadow-none"
+                    >
+                      Upload file
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="paste"
+                      className="h-9 rounded-md px-3 text-xs data-[state=active]:bg-accent data-[state=active]:shadow-none"
+                    >
+                      Paste log
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <TabsContent value="upload" className="p-5 mt-0">
+                  <UploadDropzone onFile={(file) => void handleFile(file)} />
+                  <p className="text-[11px] text-muted-foreground/70 mt-2">
+                    .log · .txt · up to 100 MB
+                  </p>
+                </TabsContent>
+
+                <TabsContent value="paste" className="p-5 mt-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground">Raw log content</p>
+                    <button
+                      onClick={() => {
+                        setPaste(SAMPLE);
+                        setSource("sample.log");
+                      }}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Wand2 className="h-3 w-3" />
+                      Load sample
+                    </button>
+                  </div>
+                  <Textarea
+                    value={paste}
+                    onChange={(e) => setPaste(e.target.value)}
+                    placeholder="Paste raw Mule log output here…"
+                    className="min-h-[200px] font-mono text-xs bg-background resize-none border-border/60"
+                  />
+                  {source && (
+                    <p className="text-[11px] text-muted-foreground mt-2 truncate">
+                      {source}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-3 mt-4">
+                    <Button
+                      onClick={handleAnalyze}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      <FileSearch className="h-3.5 w-3.5" />
+                      Analyze logs
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      No data leaves your browser
+                    </span>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
+
+function Header() {
+  return (
+    <header className="border-b border-border shrink-0 sticky top-0 z-10 bg-background/80 backdrop-blur-sm">
+      <div className="mx-auto max-w-5xl px-6 h-12 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-brand text-brand-foreground">
+            <Radar className="h-3.5 w-3.5" />
+          </div>
+          <span className="text-sm font-semibold tracking-tight">MuleScope</span>
+        </div>
+        <a
+          href="https://learning.postman.com/collection-format/getting-started/overview/"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+        >
+          Postman v2.1 spec
+        </a>
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-border shrink-0">
+      <div className="mx-auto max-w-5xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded bg-brand text-brand-foreground">
+            <Radar className="h-3 w-3" />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            MuleScope - parses and exports entirely in your browser, nothing is uploaded
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <a
+            href="https://learning.postman.com/collection-format/getting-started/overview/"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground transition-colors"
+          >
+            Postman v2.1 spec
+          </a>
+          <span className="h-3 w-px bg-border" />
+          <p>
+            Built by{" "}
+            <a
+              href="https://talhakhalidmtk.me"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-brand hover:text-brand/80 underline underline-offset-2 transition-colors"
+            >
+              Talha Khalid
+            </a>
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
