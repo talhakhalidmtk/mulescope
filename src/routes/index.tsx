@@ -8,6 +8,7 @@ import {
   FileJson,
   FileSearch,
   FolderTree,
+  Github,
   Loader2,
   Radar,
   Terminal,
@@ -584,14 +585,27 @@ function Header() {
           </div>
           <span className="text-sm font-semibold tracking-tight">MuleScope</span>
         </div>
-        <a
-          href="https://learning.postman.com/collection-format/getting-started/overview/"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-        >
-          Postman v2.1 spec
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://learning.postman.com/collection-format/getting-started/overview/"
+            target="_blank"
+            rel="noreferrer"
+            className="hidden sm:inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            Postman v2.1 spec
+          </a>
+          <a
+            href="https://github.com/talhakhalidmtk/mulescope"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="View source on GitHub"
+            title="View source on GitHub"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            <Github className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Source</span>
+          </a>
+        </div>
       </div>
     </header>
   );
@@ -611,6 +625,16 @@ function Footer() {
         </div>
 
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <a
+            href="https://github.com/talhakhalidmtk/mulescope"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+          >
+            <Github className="h-3.5 w-3.5" />
+            GitHub
+          </a>
+          <span className="h-3 w-px bg-border" />
           <a
             href="https://learning.postman.com/collection-format/getting-started/overview/"
             target="_blank"

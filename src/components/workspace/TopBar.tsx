@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Download, Radar } from "lucide-react";
+import { Download, Github, Radar } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ParsedCollection } from "@/lib/types";
@@ -30,6 +30,17 @@ export function TopBar({ collection }: { collection: ParsedCollection }) {
           {total} endpoint{total !== 1 ? "s" : ""}
         </span>
       </div>
+
+      <a
+        href="https://github.com/talhakhalidmtk/mulescope"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="View source on GitHub"
+        title="View source on GitHub"
+        className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+      >
+        <Github className="h-3.5 w-3.5" />
+      </a>
 
       <Button
         size="sm"
