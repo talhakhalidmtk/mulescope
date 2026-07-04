@@ -1,10 +1,17 @@
-import { Check, Terminal } from "lucide-react";
+import { ChevronDown, Check, Download, Terminal } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ParsedRequest } from "@/lib/types";
 import { toCurl } from "@/lib/curl-export";
+import { downloadOccurrencesCsv, downloadOccurrencesJson } from "@/lib/export-calls";
 import { MethodBadge } from "./MethodBadge";
 import { KVTable } from "./KVTable";
 import { CodeBlock } from "./CodeBlock";
@@ -24,6 +31,15 @@ export function RequestPanel({ request }: { request: ParsedRequest }) {
         description: "curl isn't subject to browser CORS - paste it into a terminal to run it for real.",
       });
       setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  const callCount = request.occurrences.length;
+  const handleExportCalls = (format: "json" | "csv") => {
+    if (format === "json") downloadOccurrencesJson(request);
+    else downloadOccurrencesCsv(request);
+    toast.success(`Exported as ${format.toUpperCase()}`, {
+      description: `${callCount} call${callCount !== 1 ? "s" : ""} to this endpoint.`,
     });
   };
 
@@ -50,6 +66,29 @@ export function RequestPanel({ request }: { request: ParsedRequest }) {
             )}
             {copied ? "Copied" : "Copy as cURL"}
           </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 h-8 px-3 border-border text-muted-foreground hover:text-foreground"
+                title={`Download all ${callCount} call${callCount !== 1 ? "s" : ""} to this endpoint`}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export calls
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExportCalls("json")}>
+                Download as JSON ({callCount})
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportCalls("csv")}>
+                Download as CSV ({callCount})
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
