@@ -129,12 +129,17 @@ export function extractParamsByEndpoint(collection: ParsedCollection): EndpointP
   return result;
 }
 
-/** Request ids of endpoints that have at least one field matching `search`. */
-export function endpointsMatching(collection: ParsedCollection, search: string): Set<string> {
+/**
+ * Request ids of endpoints that have at least one field matching `search`.
+ * Takes the already-extracted per-endpoint list (not the raw collection) -
+ * building it re-parses and flattens every JSON body in the collection, which
+ * is too expensive to redo on every keystroke of a search box.
+ */
+export function endpointsMatching(perEndpoint: EndpointParams[], search: string): Set<string> {
   const needle = search.trim().toLowerCase();
   const matches = new Set<string>();
   if (!needle) return matches;
-  for (const ep of extractParamsByEndpoint(collection)) {
+  for (const ep of perEndpoint) {
     if (ep.params.some((p) => p.key.toLowerCase().includes(needle))) matches.add(ep.requestId);
   }
   return matches;

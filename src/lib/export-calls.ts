@@ -40,6 +40,62 @@ function csvCell(value: string): string {
   return value;
 }
 
+function xmlEscape(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+const EXCEL_HEADERS = [
+  "Timestamp",
+  "Method",
+  "URL",
+  "Request Body",
+  "Response Status",
+  "Response Status Text",
+  "Response Body",
+];
+
+/** SpreadsheetML 2003 (.xls) - a plain XML format Excel opens natively, no zip/binary encoding needed. */
+function occurrencesToExcelXml(request: ParsedRequest): string {
+  const cell = (value: string, styleId?: string) =>
+    `<Cell${styleId ? ` ss:StyleID="${styleId}"` : ""}><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+
+  const headerRow = `<Row>${EXCEL_HEADERS.map((h) => cell(h, "Header")).join("")}</Row>`;
+  const rows = request.occurrences.map((occ) => {
+    const values = [
+      occ.timestamp,
+      request.method,
+      occ.url,
+      occ.body?.raw ?? "",
+      String(occ.response.status),
+      occ.response.statusText,
+      occ.response.body ?? "",
+    ];
+    return `<Row>${values.map((v) => cell(v)).join("")}</Row>`;
+  });
+
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Header"><Font ss:Bold="1"/></Style>
+ </Styles>
+ <Worksheet ss:Name="Calls">
+  <Table>
+   ${headerRow}
+   ${rows.join("\n   ")}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+}
+
 function occurrencesToCsv(request: ParsedRequest): string {
   const rows = [
     ["Timestamp", "Method", "URL", "Request Body", "Response Status", "Response Status Text", "Response Body"],
@@ -66,4 +122,9 @@ export function downloadOccurrencesJson(request: ParsedRequest) {
 export function downloadOccurrencesCsv(request: ParsedRequest) {
   const csv = occurrencesToCsv(request);
   triggerDownload(csv, "text/csv;charset=utf-8", `mulescope-${slugify(request.name)}-calls.csv`);
+}
+
+export function downloadOccurrencesExcel(request: ParsedRequest) {
+  const xml = occurrencesToExcelXml(request);
+  triggerDownload(xml, "application/vnd.ms-excel", `mulescope-${slugify(request.name)}-calls.xls`);
 }

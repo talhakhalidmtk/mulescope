@@ -73,7 +73,7 @@ export function TopBar({ collection }: { collection: ParsedCollection }) {
         className="shrink-0 h-7 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
       >
         <Download className="h-3 w-3" />
-        Export
+        Export Postman
       </Button>
     </header>
   );

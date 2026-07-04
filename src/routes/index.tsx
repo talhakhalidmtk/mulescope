@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadDropzone } from "@/components/import/UploadDropzone";
+import { FeaturesDialog } from "@/components/import/FeaturesDialog";
 import { MethodBadge } from "@/components/workspace/MethodBadge";
 import { parseAsync } from "@/lib/parse-async";
 import { setCollection } from "@/lib/log-store";
@@ -581,6 +582,7 @@ function Index() {
 }
 
 function Header() {
+  const [featuresOpen, setFeaturesOpen] = useState(false);
   return (
     <header className="border-b border-border shrink-0 sticky top-0 z-10 bg-background/80 backdrop-blur-sm">
       <div className="mx-auto max-w-5xl px-6 h-12 flex items-center justify-between">
@@ -591,6 +593,13 @@ function Header() {
           <span className="text-sm font-semibold tracking-tight">MuleScope</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFeaturesOpen(true)}
+            className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            Features
+          </button>
+          <FeaturesDialog open={featuresOpen} onOpenChange={setFeaturesOpen} />
           <a
             href="https://learning.postman.com/collection-format/getting-started/overview/"
             target="_blank"

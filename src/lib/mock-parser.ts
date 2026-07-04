@@ -16,7 +16,8 @@ function req(partial: Omit<ParsedRequest, "id" | "occurrences">): ParsedRequest 
   return { id, occurrences: [occurrence], ...partial };
 }
 
-export function parseMuleLog(_raw: string): ParsedCollection {
+/** Hand-written sample collection used for the landing page's interactive demo. */
+export function buildDemoCollection(): ParsedCollection {
   counter = 0;
   const base = "https://api.acme-mule.io";
 

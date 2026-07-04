@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { HttpMethod, ParsedCollection } from "@/lib/types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { MethodBadge } from "./MethodBadge";
 
 function statusDotClass(status: number) {
@@ -47,6 +48,7 @@ export function CollectionSidebar({
   onSelect: (id: string) => void;
 }) {
   const [q, setQ] = useState("");
+  const debouncedQ = useDebouncedValue(q, 150);
   const [methods, setMethods] = useState<Set<HttpMethod>>(new Set());
   const [openFolders, setOpenFolders] = useState<Set<string>>(
     () => new Set(collection.folders.map((f) => f.id)),
@@ -54,7 +56,7 @@ export function CollectionSidebar({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = debouncedQ.trim().toLowerCase();
     return collection.folders
       .map((f) => ({
         ...f,
@@ -68,7 +70,7 @@ export function CollectionSidebar({
         }),
       }))
       .filter((f) => f.requests.length > 0);
-  }, [collection, q, methods]);
+  }, [collection, debouncedQ, methods]);
 
   return (
     <aside className="flex h-full flex-col bg-sidebar border-r border-sidebar-border">

@@ -9,7 +9,15 @@
   "homepage": "https://github.com/talhakhalidmtk/mulescope",
   "author": "Talha Khalid <talhakhalidmtk@gmail.com> (https://talhakhalidmtk.me)",
   "license": "MIT",
-  "keywords": ["mulesoft", "mule", "cloudhub", "postman", "log-parser", "api", "devtools"],
+  "keywords": [
+    "mulesoft",
+    "mule",
+    "cloudhub",
+    "postman",
+    "log-parser",
+    "api",
+    "devtools"
+  ],
   "private": true,
   "sideEffects": false,
   "type": "module",

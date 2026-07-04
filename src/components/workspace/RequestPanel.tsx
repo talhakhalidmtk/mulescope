@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { ParsedRequest } from "@/lib/types";
 import { toCurl } from "@/lib/curl-export";
-import { downloadOccurrencesCsv, downloadOccurrencesJson } from "@/lib/export-calls";
+import { downloadOccurrencesCsv, downloadOccurrencesExcel, downloadOccurrencesJson } from "@/lib/export-calls";
 import { MethodBadge } from "./MethodBadge";
 import { KVTable } from "./KVTable";
 import { CodeBlock } from "./CodeBlock";
@@ -35,10 +35,11 @@ export function RequestPanel({ request }: { request: ParsedRequest }) {
   };
 
   const callCount = request.occurrences.length;
-  const handleExportCalls = (format: "json" | "csv") => {
+  const handleExportCalls = (format: "json" | "csv" | "excel") => {
     if (format === "json") downloadOccurrencesJson(request);
-    else downloadOccurrencesCsv(request);
-    toast.success(`Exported as ${format.toUpperCase()}`, {
+    else if (format === "csv") downloadOccurrencesCsv(request);
+    else downloadOccurrencesExcel(request);
+    toast.success(`Exported as ${format === "excel" ? "Excel" : format.toUpperCase()}`, {
       description: `${callCount} call${callCount !== 1 ? "s" : ""} to this endpoint.`,
     });
   };
@@ -86,6 +87,9 @@ export function RequestPanel({ request }: { request: ParsedRequest }) {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExportCalls("csv")}>
                 Download as CSV ({callCount})
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportCalls("excel")}>
+                Download as Excel ({callCount})
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

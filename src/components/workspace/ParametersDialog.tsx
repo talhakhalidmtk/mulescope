@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Braces, ChevronDown, Download, Search } from "lucide-react";
 import { toast } from "sonner";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,9 @@ export function ParametersDialog({
 }) {
   const [q, setQ] = useState("");
   const [endpointId, setEndpointId] = useState<string>(ALL);
+  // The input itself must never lag - only the (potentially expensive) filtering
+  // derived from it waits a beat for typing to pause.
+  const debouncedQ = useDebouncedValue(q, 150);
 
   const perEndpoint = useMemo(() => extractParamsByEndpoint(collection), [collection]);
   const allParams = useMemo(() => extractUniqueParams(collection), [collection]);
@@ -51,21 +55,23 @@ export function ParametersDialog({
   const activeParams = scopedEndpoint ? scopedEndpoint.params : allParams;
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = debouncedQ.trim().toLowerCase();
     if (!needle) return activeParams;
     return activeParams.filter((p) => p.key.toLowerCase().includes(needle));
-  }, [activeParams, q]);
+  }, [activeParams, debouncedQ]);
 
   // "All endpoints" dropdown narrows to only endpoints that actually have a
   // field matching the current search, so picking an endpoint after searching
   // doesn't require guessing which ones are relevant. The currently selected
   // endpoint always stays listed so an active selection is never hidden.
-  const matchingEndpointIds = useMemo(() => endpointsMatching(collection, q), [collection, q]);
+  // Built from the already-extracted perEndpoint list, not the raw collection -
+  // re-flattening every JSON body per keystroke is what made typing feel slow.
+  const matchingEndpointIds = useMemo(() => endpointsMatching(perEndpoint, debouncedQ), [perEndpoint, debouncedQ]);
   const endpointOptions = useMemo(() => {
-    if (matchingEndpointIds.size === 0 && q.trim()) return perEndpoint.filter((ep) => ep.requestId === endpointId);
-    if (!q.trim()) return perEndpoint;
+    if (!debouncedQ.trim()) return perEndpoint;
+    if (matchingEndpointIds.size === 0) return perEndpoint.filter((ep) => ep.requestId === endpointId);
     return perEndpoint.filter((ep) => matchingEndpointIds.has(ep.requestId) || ep.requestId === endpointId);
-  }, [perEndpoint, matchingEndpointIds, q, endpointId]);
+  }, [perEndpoint, matchingEndpointIds, debouncedQ, endpointId]);
 
   const uniqueEndpoints = collection.folders.reduce((n, f) => n + f.requests.length, 0);
   const totalCalls = collection.folders.reduce(
@@ -102,8 +108,8 @@ export function ParametersDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Braces className="h-4 w-4 text-brand" />
             Unique parameters
@@ -152,7 +158,7 @@ export function ParametersDialog({
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 -mx-6 px-6 border-t border-border">
+        <ScrollArea className="flex-1 min-h-0 -mx-6 px-6 border-t border-border">
           <Table>
             <TableHeader>
               <TableRow>
