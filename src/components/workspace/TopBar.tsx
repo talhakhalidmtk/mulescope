@@ -9,6 +9,10 @@ import { ParametersDialog } from "./ParametersDialog";
 
 export function TopBar({ collection }: { collection: ParsedCollection }) {
   const total = collection.folders.reduce((n, f) => n + f.requests.length, 0);
+  const totalCalls = collection.folders.reduce(
+    (n, f) => n + f.requests.reduce((m, r) => m + r.occurrences.length, 0),
+    0,
+  );
   const [paramsOpen, setParamsOpen] = useState(false);
   return (
     <header className="h-11 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
@@ -30,7 +34,8 @@ export function TopBar({ collection }: { collection: ParsedCollection }) {
           {collection.name}
         </span>
         <span className="text-xs text-muted-foreground shrink-0">
-          {total} endpoint{total !== 1 ? "s" : ""}
+          {total} unique endpoint{total !== 1 ? "s" : ""}
+          <span className="text-muted-foreground/60"> · {totalCalls} total call{totalCalls !== 1 ? "s" : ""}</span>
         </span>
       </div>
 

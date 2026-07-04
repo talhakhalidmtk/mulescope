@@ -27,6 +27,11 @@ export function ParametersDialog({
 }) {
   const [q, setQ] = useState("");
   const params = useMemo(() => extractUniqueParams(collection), [collection]);
+  const uniqueEndpoints = collection.folders.reduce((n, f) => n + f.requests.length, 0);
+  const totalCalls = collection.folders.reduce(
+    (n, f) => n + f.requests.reduce((m, r) => m + r.occurrences.length, 0),
+    0,
+  );
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -43,8 +48,9 @@ export function ParametersDialog({
             Unique parameters
           </DialogTitle>
           <DialogDescription>
-            Every distinct query param and JSON body field seen across all {params.length > 0 ? "" : "captured "}
-            calls in this collection - {params.length} found.
+            Every distinct query param and JSON body field seen across {totalCalls} total call
+            {totalCalls !== 1 ? "s" : ""} to {uniqueEndpoints} unique endpoint{uniqueEndpoints !== 1 ? "s" : ""}
+            {" "}- {params.length} field{params.length !== 1 ? "s" : ""} found.
           </DialogDescription>
         </DialogHeader>
 
@@ -65,7 +71,7 @@ export function ParametersDialog({
             onClick={() => {
               downloadParamsCsv(collection);
               toast.success("Parameters exported", {
-                description: "CSV with one row per field, grouped by endpoint.",
+                description: `${params.length} fields from ${totalCalls} calls across ${uniqueEndpoints} endpoints.`,
               });
             }}
             className="h-8 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground"

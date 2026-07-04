@@ -16,10 +16,19 @@ export interface EndpointParams {
   params: ParamInfo[];
 }
 
+const MAX_SAMPLE_LENGTH = 120;
+
 function stringifyValue(v: unknown): string {
   if (v === null) return "null";
   if (typeof v === "string") return v;
   return JSON.stringify(v);
+}
+
+// Some fields (memo bodies, HTML content, base64/JWT blobs) hold long free-text
+// rather than a short parameter value - cap what shows up as a "sample" so an
+// export/view of parameters doesn't turn into a dump of full log content.
+function truncateSample(v: string): string {
+  return v.length > MAX_SAMPLE_LENGTH ? `${v.slice(0, MAX_SAMPLE_LENGTH)}…` : v;
 }
 
 // Flattens nested objects/arrays into dot/[] paths, e.g. {a:{b:1}} -> "a.b",
@@ -80,7 +89,7 @@ function toParamInfos(map: ParamMap): ParamInfo[] {
       key: mapKey.slice(kind.length + 1),
       kind,
       count: values.length,
-      sampleValues: [...new Set(values.map(stringifyValue))].slice(0, 3),
+      sampleValues: [...new Set(values.map(stringifyValue))].slice(0, 3).map(truncateSample),
       endpoints: [...endpoints],
     }))
     .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
