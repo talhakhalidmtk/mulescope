@@ -4,6 +4,7 @@ export interface ParamInfo {
   key: string;
   kind: "query" | "body";
   count: number;
+  uniqueCount: number;
   sampleValues: string[];
   endpoints: string[];
 }
@@ -85,13 +86,17 @@ function ingestRequest(map: ParamMap, req: ParsedRequest) {
 
 function toParamInfos(map: ParamMap): ParamInfo[] {
   return [...map.entries()]
-    .map(([mapKey, { kind, values, endpoints }]) => ({
-      key: mapKey.slice(kind.length + 1),
-      kind,
-      count: values.length,
-      sampleValues: [...new Set(values.map(stringifyValue))].slice(0, 3).map(truncateSample),
-      endpoints: [...endpoints],
-    }))
+    .map(([mapKey, { kind, values, endpoints }]) => {
+      const uniqueValues = [...new Set(values.map(stringifyValue))];
+      return {
+        key: mapKey.slice(kind.length + 1),
+        kind,
+        count: values.length,
+        uniqueCount: uniqueValues.length,
+        sampleValues: uniqueValues.slice(0, 3).map(truncateSample),
+        endpoints: [...endpoints],
+      };
+    })
     .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
 
@@ -124,16 +129,66 @@ export function extractParamsByEndpoint(collection: ParsedCollection): EndpointP
   return result;
 }
 
+/** Request ids of endpoints that have at least one field matching `search`. */
+export function endpointsMatching(collection: ParsedCollection, search: string): Set<string> {
+  const needle = search.trim().toLowerCase();
+  const matches = new Set<string>();
+  if (!needle) return matches;
+  for (const ep of extractParamsByEndpoint(collection)) {
+    if (ep.params.some((p) => p.key.toLowerCase().includes(needle))) matches.add(ep.requestId);
+  }
+  return matches;
+}
+
+/**
+ * Every value a specific field took, untruncated - unlike ParamInfo.sampleValues
+ * (capped at 3, truncated for the overview table/CSV), this is for someone who
+ * picked one exact parameter and wants the real, full list of values it held.
+ */
+export function extractParamValues(
+  collection: ParsedCollection,
+  kind: "query" | "body",
+  key: string,
+  options: { requestId?: string } = {},
+): { all: string[]; unique: string[] } {
+  const map: ParamMap = new Map();
+  for (const folder of collection.folders) {
+    for (const req of folder.requests) {
+      if (options.requestId && req.id !== options.requestId) continue;
+      ingestRequest(map, req);
+    }
+  }
+  const entry = map.get(`${kind}:${key}`);
+  if (!entry) return { all: [], unique: [] };
+  const all = entry.values.map(stringifyValue);
+  return { all, unique: [...new Set(all)] };
+}
+
 function csvCell(value: string): string {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
   return value;
 }
 
-/** Builds a CSV of every unique parameter value, grouped by endpoint. */
-export function toParamsCsv(collection: ParsedCollection): string {
+export interface ParamsCsvOptions {
+  /** Only include this request's fields (id from ParsedRequest.id). Omit/undefined for all endpoints. */
+  requestId?: string;
+  /** Only include fields whose key contains this text (case-insensitive). */
+  search?: string;
+}
+
+/**
+ * Builds a CSV of unique parameter values, grouped by endpoint, optionally
+ * scoped down to one endpoint and/or filtered to fields matching a search
+ * term - so a download can match exactly what's filtered on screen instead
+ * of always dumping the whole collection.
+ */
+export function toParamsCsv(collection: ParsedCollection, options: ParamsCsvOptions = {}): string {
+  const needle = options.search?.trim().toLowerCase() ?? "";
   const rows = [["Endpoint", "Method", "URL", "Kind", "Field", "Count", "Sample values"]];
   for (const ep of extractParamsByEndpoint(collection)) {
+    if (options.requestId && ep.requestId !== options.requestId) continue;
     for (const p of ep.params) {
+      if (needle && !p.key.toLowerCase().includes(needle)) continue;
       rows.push([
         ep.name,
         ep.method,
@@ -148,9 +203,8 @@ export function toParamsCsv(collection: ParsedCollection): string {
   return rows.map((row) => row.map(csvCell).join(",")).join("\n");
 }
 
-export function downloadParamsCsv(collection: ParsedCollection, filename = "mulescope-parameters.csv") {
-  const csv = toParamsCsv(collection);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+function triggerDownload(content: string, mimeType: string, filename: string) {
+  const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -159,4 +213,27 @@ export function downloadParamsCsv(collection: ParsedCollection, filename = "mule
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+export function downloadParamsCsv(
+  collection: ParsedCollection,
+  options: ParamsCsvOptions = {},
+  filename = "mulescope-parameters.csv",
+) {
+  triggerDownload(toParamsCsv(collection, options), "text/csv;charset=utf-8", filename);
+}
+
+/** Downloads every value (or just the deduped set) a single field took, one per line. */
+export function downloadParamValues(
+  collection: ParsedCollection,
+  kind: "query" | "body",
+  key: string,
+  mode: "all" | "unique",
+  options: { requestId?: string } = {},
+  filename: string,
+) {
+  const { all, unique } = extractParamValues(collection, kind, key, options);
+  const values = mode === "all" ? all : unique;
+  const csv = [["Value"], ...values.map((v) => [v])].map((row) => row.map(csvCell).join(",")).join("\n");
+  triggerDownload(csv, "text/csv;charset=utf-8", filename);
 }

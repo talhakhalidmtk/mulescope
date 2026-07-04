@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Braces, Download, Search } from "lucide-react";
+import { Braces, ChevronDown, Download, Search } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -10,11 +10,27 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { ParsedCollection } from "@/lib/types";
-import { downloadParamsCsv, extractUniqueParams } from "@/lib/extract-params";
+import {
+  downloadParamsCsv,
+  downloadParamValues,
+  endpointsMatching,
+  extractParamsByEndpoint,
+  extractUniqueParams,
+  type ParamInfo,
+} from "@/lib/extract-params";
+
+const ALL = "__all__";
 
 export function ParametersDialog({
   collection,
@@ -26,18 +42,63 @@ export function ParametersDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [q, setQ] = useState("");
-  const params = useMemo(() => extractUniqueParams(collection), [collection]);
+  const [endpointId, setEndpointId] = useState<string>(ALL);
+
+  const perEndpoint = useMemo(() => extractParamsByEndpoint(collection), [collection]);
+  const allParams = useMemo(() => extractUniqueParams(collection), [collection]);
+
+  const scopedEndpoint = endpointId === ALL ? null : perEndpoint.find((e) => e.requestId === endpointId) ?? null;
+  const activeParams = scopedEndpoint ? scopedEndpoint.params : allParams;
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return activeParams;
+    return activeParams.filter((p) => p.key.toLowerCase().includes(needle));
+  }, [activeParams, q]);
+
+  // "All endpoints" dropdown narrows to only endpoints that actually have a
+  // field matching the current search, so picking an endpoint after searching
+  // doesn't require guessing which ones are relevant. The currently selected
+  // endpoint always stays listed so an active selection is never hidden.
+  const matchingEndpointIds = useMemo(() => endpointsMatching(collection, q), [collection, q]);
+  const endpointOptions = useMemo(() => {
+    if (matchingEndpointIds.size === 0 && q.trim()) return perEndpoint.filter((ep) => ep.requestId === endpointId);
+    if (!q.trim()) return perEndpoint;
+    return perEndpoint.filter((ep) => matchingEndpointIds.has(ep.requestId) || ep.requestId === endpointId);
+  }, [perEndpoint, matchingEndpointIds, q, endpointId]);
+
   const uniqueEndpoints = collection.folders.reduce((n, f) => n + f.requests.length, 0);
   const totalCalls = collection.folders.reduce(
     (n, f) => n + f.requests.reduce((m, r) => m + r.occurrences.length, 0),
     0,
   );
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return params;
-    return params.filter((p) => p.key.toLowerCase().includes(needle));
-  }, [params, q]);
+  const handleDownload = () => {
+    downloadParamsCsv(
+      collection,
+      { requestId: scopedEndpoint?.requestId, search: q },
+      csvFilename(scopedEndpoint?.name, q),
+    );
+    toast.success("Parameters exported", {
+      description: scopedEndpoint
+        ? `${filtered.length} field${filtered.length !== 1 ? "s" : ""} for "${scopedEndpoint.name}".`
+        : `${filtered.length} field${filtered.length !== 1 ? "s" : ""} from ${totalCalls} calls across ${uniqueEndpoints} endpoints.`,
+    });
+  };
+
+  const handleDownloadValues = (p: ParamInfo, mode: "all" | "unique") => {
+    downloadParamValues(
+      collection,
+      p.kind,
+      p.key,
+      mode,
+      { requestId: scopedEndpoint?.requestId },
+      valuesFilename(p.key, mode, scopedEndpoint?.name),
+    );
+    toast.success(`${mode === "all" ? "All" : "Unique"} values exported`, {
+      description: `${mode === "all" ? p.count : p.uniqueCount} value${(mode === "all" ? p.count : p.uniqueCount) !== 1 ? "s" : ""} for "${p.key}".`,
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,7 +111,7 @@ export function ParametersDialog({
           <DialogDescription>
             Every distinct query param and JSON body field seen across {totalCalls} total call
             {totalCalls !== 1 ? "s" : ""} to {uniqueEndpoints} unique endpoint{uniqueEndpoints !== 1 ? "s" : ""}
-            {" "}- {params.length} field{params.length !== 1 ? "s" : ""} found.
+            {" "}- {filtered.length} field{filtered.length !== 1 ? "s" : ""} shown.
           </DialogDescription>
         </DialogHeader>
 
@@ -65,16 +126,26 @@ export function ParametersDialog({
               autoFocus
             />
           </div>
+
+          <Select value={endpointId} onValueChange={setEndpointId}>
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue placeholder="All endpoints" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All endpoints</SelectItem>
+              {endpointOptions.map((ep) => (
+                <SelectItem key={ep.requestId} value={ep.requestId}>
+                  {ep.method} {ep.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              downloadParamsCsv(collection);
-              toast.success("Parameters exported", {
-                description: `${params.length} fields from ${totalCalls} calls across ${uniqueEndpoints} endpoints.`,
-              });
-            }}
-            className="h-8 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground"
+            onClick={handleDownload}
+            className="h-8 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground shrink-0"
           >
             <Download className="h-3 w-3" />
             Download CSV
@@ -85,9 +156,10 @@ export function ParametersDialog({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[35%]">Field</TableHead>
+                <TableHead className="w-[32%]">Field</TableHead>
                 <TableHead className="w-[15%]">Count</TableHead>
                 <TableHead>Sample values</TableHead>
+                <TableHead className="w-[1%]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -106,7 +178,10 @@ export function ParametersDialog({
                   </TableCell>
                   <TableCell className="text-xs tabular-nums align-top">
                     {p.count}
-                    <span className="text-muted-foreground/60"> / {p.endpoints.length} ep</span>
+                    <span className="text-muted-foreground/60"> ({p.uniqueCount} unique)</span>
+                    {!scopedEndpoint && (
+                      <span className="text-muted-foreground/60"> / {p.endpoints.length} ep</span>
+                    )}
                   </TableCell>
                   <TableCell className="font-mono text-[11px] text-muted-foreground align-top">
                     <div className="flex flex-col gap-0.5">
@@ -115,11 +190,34 @@ export function ParametersDialog({
                       ))}
                     </div>
                   </TableCell>
+                  <TableCell className="align-top">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                          title={`Download values for ${p.key}`}
+                        >
+                          <Download className="h-3 w-3" />
+                          <ChevronDown className="h-2.5 w-2.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleDownloadValues(p, "all")}>
+                          Download all values ({p.count})
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownloadValues(p, "unique")}>
+                          Download unique values ({p.uniqueCount})
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-8">
+                  <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">
                     No fields match "{q}"
                   </TableCell>
                 </TableRow>
@@ -130,4 +228,21 @@ export function ParametersDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function csvFilename(endpointName: string | undefined, search: string): string {
+  const parts = ["mulescope-parameters"];
+  if (endpointName) parts.push(slugify(endpointName));
+  if (search.trim()) parts.push(slugify(search.trim()));
+  return `${parts.join("-")}.csv`;
+}
+
+function valuesFilename(key: string, mode: "all" | "unique", endpointName: string | undefined): string {
+  const parts = ["mulescope", slugify(key), mode];
+  if (endpointName) parts.push(slugify(endpointName));
+  return `${parts.join("-")}.csv`;
+}
+
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
