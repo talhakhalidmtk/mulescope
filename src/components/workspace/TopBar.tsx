@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Download, Github, Radar } from "lucide-react";
+import { Braces, Download, Github, Radar } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ParsedCollection } from "@/lib/types";
 import { downloadPostmanCollection } from "@/lib/postman-export";
+import { ParametersDialog } from "./ParametersDialog";
 
 export function TopBar({ collection }: { collection: ParsedCollection }) {
   const total = collection.folders.reduce((n, f) => n + f.requests.length, 0);
+  const [paramsOpen, setParamsOpen] = useState(false);
   return (
     <header className="h-11 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
       <Link
@@ -30,6 +33,17 @@ export function TopBar({ collection }: { collection: ParsedCollection }) {
           {total} endpoint{total !== 1 ? "s" : ""}
         </span>
       </div>
+
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setParamsOpen(true)}
+        className="shrink-0 h-7 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+      >
+        <Braces className="h-3 w-3" />
+        Parameters
+      </Button>
+      <ParametersDialog collection={collection} open={paramsOpen} onOpenChange={setParamsOpen} />
 
       <a
         href="https://github.com/talhakhalidmtk/mulescope"

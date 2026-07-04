@@ -388,14 +388,19 @@ function Index() {
     }
   };
 
-  const handleFile = async (file: File) => {
-    setFileName(file.name);
-    setFileSize(file.size);
+  const handleFiles = async (files: File[]) => {
+    const totalSize = files.reduce((n, f) => n + f.size, 0);
+    const label = files.length === 1 ? files[0].name : `${files.length} log files combined`;
+    setFileName(label);
+    setFileSize(totalSize);
     setStage("reading");
     setError(null);
     try {
-      const text = await file.text();
-      await run(text, file.name, file.size, true);
+      // Concatenated in the order picked - the parser reads line by line, so
+      // multiple files (e.g. rotated logs, or one per worker) are treated as
+      // one continuous stream and merged into a single collection.
+      const texts = await Promise.all(files.map((f) => f.text()));
+      await run(texts.join("\n"), label, totalSize, true);
     } catch (err) {
       setStage("error");
       setError(String(err));
@@ -520,9 +525,9 @@ function Index() {
                 </div>
 
                 <TabsContent value="upload" className="p-5 mt-0">
-                  <UploadDropzone onFile={(file) => void handleFile(file)} />
+                  <UploadDropzone onFiles={(files) => void handleFiles(files)} />
                   <p className="text-[11px] text-muted-foreground/70 mt-2">
-                    .log · .txt · no fixed size limit, parsed locally in your browser
+                    Select or drop multiple files to combine them into one collection - no fixed size limit, parsed locally in your browser
                   </p>
                 </TabsContent>
 

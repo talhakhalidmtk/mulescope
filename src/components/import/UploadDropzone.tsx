@@ -3,17 +3,18 @@ import { Upload, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function UploadDropzone({
-  onFile,
+  onFiles,
 }: {
-  onFile: (file: File) => void;
+  onFiles: (files: File[]) => void;
 }) {
   const [dragging, setDragging] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileNames, setFileNames] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handle = (file: File) => {
-    setFileName(file.name);
-    onFile(file);
+  const handle = (files: File[]) => {
+    if (files.length === 0) return;
+    setFileNames(files.map((f) => f.name));
+    onFiles(files);
   };
 
   return (
@@ -26,8 +27,7 @@ export function UploadDropzone({
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        const f = e.dataTransfer.files?.[0];
-        if (f) handle(f);
+        handle([...e.dataTransfer.files]);
       }}
       onClick={() => inputRef.current?.click()}
       className={cn(
@@ -40,10 +40,12 @@ export function UploadDropzone({
         ref={inputRef}
         type="file"
         accept=".log,.txt,text/plain"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) handle(f);
+          handle(e.target.files ? [...e.target.files] : []);
+          // Allow re-selecting the same file(s) later without needing a different pick first.
+          e.target.value = "";
         }}
       />
       <div
@@ -55,13 +57,20 @@ export function UploadDropzone({
         <Upload className="h-4 w-4" />
       </div>
       <div className="text-sm text-foreground/80 mb-1">
-        {fileName ? (
-          <span className="inline-flex items-center gap-1.5 text-foreground">
-            <FileText className="h-3.5 w-3.5 text-primary" />
-            {fileName}
-          </span>
+        {fileNames.length > 0 ? (
+          fileNames.length === 1 ? (
+            <span className="inline-flex items-center gap-1.5 text-foreground">
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              {fileNames[0]}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-foreground">
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              {fileNames.length} files selected
+            </span>
+          )
         ) : (
-          "Drop file or click to browse"
+          "Drop file(s) or click to browse"
         )}
       </div>
       <div className="text-xs text-muted-foreground">.log · .txt</div>
