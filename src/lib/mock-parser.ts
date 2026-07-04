@@ -3,8 +3,17 @@ import type { ParsedCollection, ParsedRequest } from "./types";
 let counter = 0;
 const uid = (prefix: string) => `${prefix}-${++counter}-${Date.now().toString(36)}`;
 
-function req(partial: Omit<ParsedRequest, "id">): ParsedRequest {
-  return { id: uid("req"), ...partial };
+function req(partial: Omit<ParsedRequest, "id" | "occurrences">): ParsedRequest {
+  const id = uid("req");
+  const occurrence = {
+    id: uid("occ"),
+    timestamp: partial.timestamp,
+    url: partial.url,
+    query: partial.query,
+    body: partial.body,
+    response: partial.response,
+  };
+  return { id, occurrences: [occurrence], ...partial };
 }
 
 export function parseMuleLog(_raw: string): ParsedCollection {

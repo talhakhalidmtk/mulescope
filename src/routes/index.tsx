@@ -522,7 +522,7 @@ function Index() {
                 <TabsContent value="upload" className="p-5 mt-0">
                   <UploadDropzone onFile={(file) => void handleFile(file)} />
                   <p className="text-[11px] text-muted-foreground/70 mt-2">
-                    .log · .txt · up to 100 MB
+                    .log · .txt · no fixed size limit, parsed locally in your browser
                   </p>
                 </TabsContent>
 

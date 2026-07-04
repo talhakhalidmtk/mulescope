@@ -30,6 +30,22 @@ export interface ParsedRequest {
     language: "json" | "text" | "xml";
   };
   timestamp: string;
+  /**
+   * Every individual call in the log that collapsed into this endpoint
+   * (path IDs like order numbers are normalized during dedup, so distinct
+   * calls to e.g. /orders/9901 and /orders/9902 land here as separate
+   * occurrences). Always has at least one entry - this request itself.
+   */
+  occurrences: RequestOccurrence[];
+}
+
+export interface RequestOccurrence {
+  id: string;
+  timestamp: string;
+  url: string;
+  query: KV[];
+  body?: ParsedRequest["body"];
+  response: ParsedRequest["response"];
 }
 
 export interface ParsedFolder {

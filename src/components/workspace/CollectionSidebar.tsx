@@ -3,8 +3,24 @@ import { ChevronRight, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { HttpMethod, ParsedCollection, ParsedRequest } from "@/lib/types";
+import type { HttpMethod, ParsedCollection } from "@/lib/types";
 import { MethodBadge } from "./MethodBadge";
+
+function statusDotClass(status: number) {
+  if (status === 0) return "bg-muted-foreground/40";
+  if (status >= 500) return "bg-status-error";
+  if (status >= 400) return "bg-status-warning";
+  return "bg-status-success";
+}
+
+function pathOf(url: string): string {
+  try { return new URL(url).pathname; } catch { return url; }
+}
+
+function shortTime(ts: string): string {
+  const m = /T?(\d{2}:\d{2}:\d{2})/.exec(ts);
+  return m?.[1] ?? ts;
+}
 
 const ALL_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
@@ -28,13 +44,14 @@ export function CollectionSidebar({
 }: {
   collection: ParsedCollection;
   selectedId: string | null;
-  onSelect: (r: ParsedRequest) => void;
+  onSelect: (id: string) => void;
 }) {
   const [q, setQ] = useState("");
   const [methods, setMethods] = useState<Set<HttpMethod>>(new Set());
   const [openFolders, setOpenFolders] = useState<Set<string>>(
     () => new Set(collection.folders.map((f) => f.id)),
   );
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -126,23 +143,77 @@ export function CollectionSidebar({
                   <div className="mb-1">
                     {folder.requests.map((r) => {
                       const sel = r.id === selectedId;
+                      const hasMultiple = r.occurrences.length > 1;
+                      const isExpanded = expanded.has(r.id);
                       return (
-                        <button
-                          key={r.id}
-                          onClick={() => onSelect(r)}
-                          className={cn(
-                            "w-full flex items-center gap-2 pl-[26px] pr-3 py-1.5 text-left border-l-2 transition-all duration-150",
-                            sel
-                              ? "border-l-primary bg-sidebar-accent text-foreground"
-                              : "border-l-transparent text-muted-foreground hover:border-l-primary/30 hover:bg-sidebar-accent/60 hover:text-foreground",
+                        <div key={r.id}>
+                          <button
+                            onClick={() => onSelect(r.id)}
+                            className={cn(
+                              "w-full flex items-center gap-2 pl-[26px] pr-2 py-1.5 text-left border-l-2 transition-all duration-150",
+                              sel
+                                ? "border-l-primary bg-sidebar-accent text-foreground"
+                                : "border-l-transparent text-muted-foreground hover:border-l-primary/30 hover:bg-sidebar-accent/60 hover:text-foreground",
+                            )}
+                          >
+                            <MethodBadge method={r.method} dot className="w-14 shrink-0" />
+                            <span className="truncate text-xs flex-1">{r.name}</span>
+                            {r.response.status >= 400 && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-status-error shrink-0" />
+                            )}
+                            {hasMultiple && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const next = new Set(expanded);
+                                  if (isExpanded) next.delete(r.id); else next.add(r.id);
+                                  setExpanded(next);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key !== "Enter" && e.key !== " ") return;
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const next = new Set(expanded);
+                                  if (isExpanded) next.delete(r.id); else next.add(r.id);
+                                  setExpanded(next);
+                                }}
+                                title={`${r.occurrences.length} calls to this endpoint - click to inspect each one`}
+                                className="inline-flex items-center gap-0.5 shrink-0 rounded px-1 py-0.5 text-[10px] tabular-nums text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+                              >
+                                <ChevronRight
+                                  className={cn("h-2.5 w-2.5 transition-transform duration-200", isExpanded && "rotate-90")}
+                                />
+                                ×{r.occurrences.length}
+                              </span>
+                            )}
+                          </button>
+
+                          {hasMultiple && isExpanded && (
+                            <div className="mb-0.5">
+                              {r.occurrences.map((occ) => {
+                                const occSel = occ.id === selectedId;
+                                return (
+                                  <button
+                                    key={occ.id}
+                                    onClick={() => onSelect(occ.id)}
+                                    className={cn(
+                                      "w-full flex items-center gap-2 pl-[52px] pr-3 py-1 text-left border-l-2 transition-all duration-150 font-mono",
+                                      occSel
+                                        ? "border-l-primary bg-sidebar-accent text-foreground"
+                                        : "border-l-transparent text-muted-foreground hover:border-l-primary/30 hover:bg-sidebar-accent/60 hover:text-foreground",
+                                    )}
+                                  >
+                                    <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDotClass(occ.response.status))} />
+                                    <span className="text-[10px] shrink-0 opacity-70">{shortTime(occ.timestamp)}</span>
+                                    <span className="truncate text-[10.5px] flex-1">{pathOf(occ.url)}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
-                        >
-                          <MethodBadge method={r.method} dot className="w-14 shrink-0" />
-                          <span className="truncate text-xs flex-1">{r.name}</span>
-                          {r.response.status >= 400 && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-status-error shrink-0" />
-                          )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>

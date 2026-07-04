@@ -89,10 +89,20 @@ status=201 duration=318ms`}</pre>
     );
   }
 
-  const selected: ParsedRequest | null =
-    collection.folders
-      .flatMap((f) => f.requests)
-      .find((r) => r.id === selectedId) ?? null;
+  const allRequests = collection.folders.flatMap((f) => f.requests);
+
+  // selectedId can point at either a request (canonical/default view) or one
+  // of its occurrences (a specific call the endpoint was made with) - resolve
+  // whichever it is into a displayable ParsedRequest.
+  let selected: ParsedRequest | null = null;
+  for (const r of allRequests) {
+    if (r.id === selectedId) { selected = r; break; }
+    const occ = r.occurrences.find((o) => o.id === selectedId);
+    if (occ) {
+      selected = { ...r, id: occ.id, url: occ.url, query: occ.query, body: occ.body, response: occ.response, timestamp: occ.timestamp };
+      break;
+    }
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -103,7 +113,7 @@ status=201 duration=318ms`}</pre>
             <CollectionSidebar
               collection={collection}
               selectedId={selectedId}
-              onSelect={(r) => setSelectedId(r.id)}
+              onSelect={setSelectedId}
             />
           </ResizablePanel>
           <ResizableHandle withHandle />

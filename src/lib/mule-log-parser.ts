@@ -1,4 +1,4 @@
-import type { ParsedCollection, ParsedFolder, ParsedRequest, HttpMethod, KV } from "./types";
+import type { ParsedCollection, ParsedFolder, ParsedRequest, RequestOccurrence, HttpMethod, KV } from "./types";
 
 // ─── ID generator ─────────────────────────────────────────────────────────────
 let _seq = 0;
@@ -166,6 +166,49 @@ export function detectLang(body: string): "json" | "text" | "xml" {
   if (t.startsWith("{") || t.startsWith("[")) return "json";
   if (t.startsWith("<")) return "xml";
   return "text";
+}
+
+interface OccurrenceData {
+  timestamp: string;
+  url: string;
+  query: KV[];
+  body?: { mode: "raw"; raw: string; language: "json" | "text" | "xml" };
+  response: ParsedRequest["response"];
+}
+
+// Builds the per-call view (real URL/path, own query params, own body/response) -
+// used both for an occurrence entry and, for whichever call is picked as
+// canonical, spread directly onto the top-level ParsedRequest fields.
+function buildOccurrenceData(req: ReqEntry, res: ResEntry | null): OccurrenceData {
+  const pathBase = req.path.split("?")[0];
+  const url = buildUrl(req.role, req.hdrs, pathBase);
+
+  const query: KV[] = [];
+  const qIdx = req.path.indexOf("?");
+  if (qIdx !== -1) {
+    try {
+      for (const [k, v] of new URLSearchParams(req.path.slice(qIdx + 1))) query.push({ key: k, value: v });
+    } catch { /* ignore malformed QS */ }
+  }
+
+  const rawReqBody = req.reqBody.join("\n").replace(TRAILING_SPAN, "").trimEnd();
+  const responseBody = res ? res.bodyLines.join("\n") : "";
+
+  return {
+    timestamp: req.timestamp,
+    url,
+    query,
+    body: rawReqBody ? { mode: "raw", raw: rawReqBody, language: detectLang(rawReqBody) } : undefined,
+    response: {
+      status: res?.status ?? 0,
+      statusText: res ? resolveStatusText(res.status, res.statusText) : "No response captured",
+      timeMs: 0,
+      sizeBytes: res?.contentLength ?? responseBody.length,
+      headers: (res?.hdrs ?? []).filter((h) => !SKIP_HEADERS.has(h.key.toLowerCase())),
+      body: responseBody,
+      language: detectLang(responseBody),
+    },
+  };
 }
 
 // ─── Block finalization ────────────────────────────────────────────────────────
@@ -409,7 +452,10 @@ export function parseMuleLog(raw: string, sourceName = "mule.log"): ParsedCollec
 
   // ── Deduplicate requests ───────────────────────────────────────────────────
   // Key: role + method + host + normalized-path (query string excluded).
-  const deduped = new Map<string, { req: ReqEntry; res: ResEntry | null; queryUnion: Map<string, string> }>();
+  // Every individual call is kept (not merged away) so the UI can show what's
+  // behind the dedup - e.g. /orders/9901 and /orders/9902 both normalize to
+  // /orders/:id, but they're genuinely different calls worth inspecting.
+  const deduped = new Map<string, Array<{ req: ReqEntry; res: ResEntry | null }>>();
 
   for (const req of reqs) {
     const pathBase = req.path.split("?")[0];
@@ -420,76 +466,50 @@ export function parseMuleLog(raw: string, sourceName = "mule.log"): ParsedCollec
     const key = `${req.role}:${req.method}:${host}:${normalizePath(pathBase)}`;
     const res = req.corrId ? (resMap.get(req.corrId.toLowerCase()) ?? null) : null;
 
-    const thisQuery = new Map<string, string>();
-    const qIdx = req.path.indexOf("?");
-    if (qIdx !== -1) {
-      try {
-        for (const [k, v] of new URLSearchParams(req.path.slice(qIdx + 1))) {
-          thisQuery.set(k, v);
-        }
-      } catch { /* ignore malformed QS */ }
-    }
-
-    const existing = deduped.get(key);
-    if (!existing) {
-      deduped.set(key, { req, res, queryUnion: thisQuery });
-    } else {
-      for (const [k, v] of thisQuery) {
-        if (!existing.queryUnion.has(k)) existing.queryUnion.set(k, v);
-      }
-      if (res && !existing.res) {
-        existing.req = req;
-        existing.res = res;
-      }
-    }
+    const calls = deduped.get(key);
+    if (calls) calls.push({ req, res });
+    else deduped.set(key, [{ req, res }]);
   }
 
   // ── Assemble collection ────────────────────────────────────────────────────
   const folderMap = new Map<string, ParsedRequest[]>();
 
-  for (const { req, res, queryUnion } of deduped.values()) {
-    const pathBase = req.path.split("?")[0];
-    const url = buildUrl(req.role, req.hdrs, pathBase);
+  for (const calls of deduped.values()) {
+    const sorted = [...calls].sort((a, b) => a.req.timestamp.localeCompare(b.req.timestamp));
+    // Canonical call (used for the endpoint's default/top-level view): prefer
+    // one with a captured response, falling back to the earliest call.
+    const canonicalCall = sorted.find((c) => c.res) ?? sorted[0];
+    const canonicalReq = canonicalCall.req;
+    const pathBase = canonicalReq.path.split("?")[0];
 
     let folderName: string;
-    if (req.role === "LISTENER") {
-      const fwdHost = req.hdrs.find((h) => h.key.toLowerCase() === "x-forwarded-host")?.value
-        ?? req.hdrs.find((h) => h.key.toLowerCase() === "host")?.value
+    if (canonicalReq.role === "LISTENER") {
+      const fwdHost = canonicalReq.hdrs.find((h) => h.key.toLowerCase() === "x-forwarded-host")?.value
+        ?? canonicalReq.hdrs.find((h) => h.key.toLowerCase() === "host")?.value
         ?? "";
       folderName = fwdHost ? folderFromHost(fwdHost) : "Inbound API";
     } else {
-      const hostHdr = req.hdrs.find((h) => h.key.toLowerCase() === "host")?.value ?? "";
+      const hostHdr = canonicalReq.hdrs.find((h) => h.key.toLowerCase() === "host")?.value ?? "";
       folderName = hostHdr ? folderFromHost(hostHdr) : "Outbound API";
     }
 
-    const query: KV[] = [...queryUnion.entries()].map(([k, v]) => ({ key: k, value: v }));
-
-    // Request body: strip trailing span annotation from the last line
-    const rawReqBody = req.reqBody.join("\n").replace(TRAILING_SPAN, "").trimEnd();
-
-    // Response body: lines already span-stripped at finalize time; just join
-    const responseBody = res ? res.bodyLines.join("\n") : "";
+    const occurrences: RequestOccurrence[] = sorted.map((c) => ({
+      id: uid("occ"),
+      ...buildOccurrenceData(c.req, c.res),
+    }));
+    const canonicalData = occurrences[sorted.indexOf(canonicalCall)];
 
     const parsedReq: ParsedRequest = {
       id: uid("req"),
-      name: inferName(req.method, pathBase),
-      method: req.method,
-      url,
-      headers: req.hdrs.filter((h) => !SKIP_HEADERS.has(h.key.toLowerCase())),
-      query,
-      body: rawReqBody
-        ? { mode: "raw", raw: rawReqBody, language: detectLang(rawReqBody) }
-        : undefined,
-      response: {
-        status: res?.status ?? 0,
-        statusText: res ? resolveStatusText(res.status, res.statusText) : "No response captured",
-        timeMs: 0,
-        sizeBytes: res?.contentLength ?? responseBody.length,
-        headers: (res?.hdrs ?? []).filter((h) => !SKIP_HEADERS.has(h.key.toLowerCase())),
-        body: responseBody,
-        language: detectLang(responseBody),
-      },
-      timestamp: req.timestamp,
+      name: inferName(canonicalReq.method, pathBase),
+      method: canonicalReq.method,
+      headers: canonicalReq.hdrs.filter((h) => !SKIP_HEADERS.has(h.key.toLowerCase())),
+      url: canonicalData.url,
+      query: canonicalData.query,
+      body: canonicalData.body,
+      response: canonicalData.response,
+      timestamp: canonicalData.timestamp,
+      occurrences,
     };
 
     const bucket = folderMap.get(folderName);

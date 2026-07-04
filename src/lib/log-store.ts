@@ -21,7 +21,16 @@ function load(): ParsedCollection | null {
 export function setCollection(c: ParsedCollection) {
   current = c;
   if (typeof window !== "undefined") {
-    window.sessionStorage.setItem(KEY, JSON.stringify(c));
+    // sessionStorage has a small origin quota (~5-10MB) - large logs produce a
+    // parsed collection well past that. Persisting is only a nice-to-have for
+    // surviving a manual page refresh; the in-memory `current` above is what
+    // actually powers navigation to /workspace, so a quota failure here must
+    // not block the flow.
+    try {
+      window.sessionStorage.setItem(KEY, JSON.stringify(c));
+    } catch {
+      window.sessionStorage.removeItem(KEY);
+    }
   }
   listeners.forEach((l) => l());
 }
