@@ -169,6 +169,35 @@ export function extractParamValues(
   return { all, unique: [...new Set(all)] };
 }
 
+/** Every JSON body field (dot/[] flattened) mapped to the string values it held, for one occurrence's body. */
+export function flattenBodyValues(raw: string | undefined): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  if (!raw) return out;
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { return out; }
+  const local = new Map<string, unknown[]>();
+  flatten(parsed, "", local);
+  for (const [key, values] of local) out.set(key, values.map(stringifyValue));
+  return out;
+}
+
+/** Every unique header name seen anywhere in the collection, for request headers or per-occurrence response headers. */
+export function extractHeaderKeys(collection: ParsedCollection, kind: "request" | "response"): string[] {
+  const keys = new Set<string>();
+  for (const folder of collection.folders) {
+    for (const req of folder.requests) {
+      if (kind === "request") {
+        for (const h of req.headers) keys.add(h.key);
+      } else {
+        for (const occ of req.occurrences) {
+          for (const h of occ.response.headers) keys.add(h.key);
+        }
+      }
+    }
+  }
+  return [...keys].sort((a, b) => a.localeCompare(b));
+}
+
 function csvCell(value: string): string {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
   return value;

@@ -5,7 +5,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { HttpMethod, ParsedCollection } from "@/lib/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { matchingOccurrences, type EndpointFilter } from "@/lib/endpoint-filters";
 import { MethodBadge } from "./MethodBadge";
+import { EndpointFilterBar } from "./EndpointFilterBar";
 
 function statusDotClass(status: number) {
   if (status === 0) return "bg-muted-foreground/40";
@@ -50,6 +52,7 @@ export function CollectionSidebar({
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q, 150);
   const [methods, setMethods] = useState<Set<HttpMethod>>(new Set());
+  const [fieldFilters, setFieldFilters] = useState<EndpointFilter[]>([]);
   const [openFolders, setOpenFolders] = useState<Set<string>>(
     () => new Set(collection.folders.map((f) => f.id)),
   );
@@ -60,17 +63,21 @@ export function CollectionSidebar({
     return collection.folders
       .map((f) => ({
         ...f,
-        requests: f.requests.filter((r) => {
-          if (methods.size > 0 && !methods.has(r.method)) return false;
-          if (!needle) return true;
-          return (
-            r.name.toLowerCase().includes(needle) ||
-            r.url.toLowerCase().includes(needle)
-          );
-        }),
+        // Narrow occurrences to only the calls matching every active field
+        // filter (same reference when no filters are set), so the ×N list
+        // under an endpoint shows just the matching examples, not all of them.
+        requests: f.requests
+          .map((r) => ({ ...r, occurrences: matchingOccurrences(r, fieldFilters) }))
+          .filter((r) => {
+            if (methods.size > 0 && !methods.has(r.method)) return false;
+            if (needle && !(r.name.toLowerCase().includes(needle) || r.url.toLowerCase().includes(needle))) {
+              return false;
+            }
+            return r.occurrences.length > 0;
+          }),
       }))
       .filter((f) => f.requests.length > 0);
-  }, [collection, debouncedQ, methods]);
+  }, [collection, debouncedQ, methods, fieldFilters]);
 
   return (
     <aside className="flex h-full flex-col bg-sidebar border-r border-sidebar-border">
@@ -109,6 +116,7 @@ export function CollectionSidebar({
             );
           })}
         </div>
+        <EndpointFilterBar collection={collection} filters={fieldFilters} onChange={setFieldFilters} />
       </div>
 
       {/* Tree */}
