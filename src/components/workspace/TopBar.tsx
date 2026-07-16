@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Braces, Download, Github, Radar } from "lucide-react";
+import { Braces, ChevronDown, Download, Github, Radar } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ParsedCollection } from "@/lib/types";
-import { downloadPostmanCollection } from "@/lib/postman-export";
+import {
+  countErrorCalls,
+  downloadErrorCallsPostmanCollection,
+  downloadPostmanCollection,
+} from "@/lib/postman-export";
 import { ParametersDialog } from "./ParametersDialog";
 
 export function TopBar({ collection }: { collection: ParsedCollection }) {
@@ -14,6 +24,7 @@ export function TopBar({ collection }: { collection: ParsedCollection }) {
     0,
   );
   const [paramsOpen, setParamsOpen] = useState(false);
+  const errorCount = useMemo(() => countErrorCalls(collection), [collection]);
   return (
     <header className="h-11 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
       <Link
@@ -61,20 +72,42 @@ export function TopBar({ collection }: { collection: ParsedCollection }) {
         <Github className="h-3.5 w-3.5" />
       </a>
 
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => {
-          downloadPostmanCollection(collection);
-          toast.success("Collection downloaded", {
-            description: `${total} endpoint${total !== 1 ? "s" : ""} exported as Postman v2.1 JSON.`,
-          });
-        }}
-        className="shrink-0 h-7 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
-      >
-        <Download className="h-3 w-3" />
-        Export Postman
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 h-7 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+          >
+            <Download className="h-3 w-3" />
+            Export Postman
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={() => {
+              downloadPostmanCollection(collection);
+              toast.success("Collection downloaded", {
+                description: `${total} endpoint${total !== 1 ? "s" : ""} exported as Postman v2.1 JSON.`,
+              });
+            }}
+          >
+            Full collection ({total} endpoint{total !== 1 ? "s" : ""})
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={errorCount === 0}
+            onClick={() => {
+              downloadErrorCallsPostmanCollection(collection);
+              toast.success("Error calls downloaded", {
+                description: `${errorCount} error call${errorCount !== 1 ? "s" : ""} exported as Postman v2.1 JSON.`,
+              });
+            }}
+          >
+            Error calls only ({errorCount})
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   );
 }
