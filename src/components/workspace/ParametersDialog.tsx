@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Braces, ChevronDown, Download, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -19,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { ParsedCollection } from "@/lib/types";
 import {
@@ -28,6 +27,7 @@ import {
   endpointsMatching,
   extractParamsByEndpoint,
   extractUniqueParams,
+  type EndpointParams,
   type ParamInfo,
 } from "@/lib/extract-params";
 
@@ -48,8 +48,18 @@ export function ParametersDialog({
   // derived from it waits a beat for typing to pause.
   const debouncedQ = useDebouncedValue(q, 150);
 
-  const perEndpoint = useMemo(() => extractParamsByEndpoint(collection), [collection]);
-  const allParams = useMemo(() => extractUniqueParams(collection), [collection]);
+  // Flattens every JSON body in the collection - like FlowsDialog, this dialog is
+  // always mounted (Radix just hides it while closed), so this must not run until
+  // the user actually opens it. Cached in a ref so it computes at most once.
+  const dataRef = useRef<{ perEndpoint: EndpointParams[]; allParams: ParamInfo[] } | null>(null);
+  if (open && dataRef.current === null) {
+    dataRef.current = {
+      perEndpoint: extractParamsByEndpoint(collection),
+      allParams: extractUniqueParams(collection),
+    };
+  }
+  const perEndpoint = dataRef.current?.perEndpoint ?? [];
+  const allParams = dataRef.current?.allParams ?? [];
 
   const scopedEndpoint = endpointId === ALL ? null : perEndpoint.find((e) => e.requestId === endpointId) ?? null;
   const activeParams = scopedEndpoint ? scopedEndpoint.params : allParams;
@@ -158,7 +168,7 @@ export function ParametersDialog({
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0 -mx-6 px-6 border-t border-border">
+        <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6 border-t border-border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -230,7 +240,7 @@ export function ParametersDialog({
               )}
             </TableBody>
           </Table>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

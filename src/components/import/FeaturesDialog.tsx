@@ -1,6 +1,7 @@
 import {
   Braces,
   Download,
+  FileCode2,
   FileJson,
   Files,
   FolderTree,
@@ -9,6 +10,7 @@ import {
   Radar,
   Search,
   Terminal,
+  Waypoints,
 } from "lucide-react";
 import {
   Dialog,
@@ -69,16 +71,28 @@ const FEATURES: Feature[] = [
     howTo: "Open a request, click \"Export calls\", and choose JSON (full structured detail) or CSV (one row per call).",
   },
   {
+    icon: Waypoints,
+    title: "Flows (correlation-grouped timeline)",
+    purpose: "Reconstructs a whole transaction, not just one call - every outbound REQUESTER call a flow made shares its Mule correlation ID with the inbound LISTENER call that triggered it, so they can be grouped and laid out on a shared timeline by start offset and duration.",
+    howTo: "Open the \"Analyze\" menu in the workspace top bar and pick Flows. Each card is one correlation ID: the inbound call on top, its outbound calls nested below, positioned and sized on a waterfall by when they ran and how long they took. Click any bar to open that exact call.",
+  },
+  {
     icon: Braces,
     title: "Unique parameters",
     purpose: "Surfaces every distinct query parameter and JSON body field used across the whole collection - handy for understanding the data model or spotting sensitive fields (tokens, emails, IDs).",
-    howTo: "Click \"Parameters\" in the workspace top bar. Search by field name, scope to one endpoint, and download all/unique values for any single field, or the whole scoped table as CSV.",
+    howTo: "Open the \"Analyze\" menu in the workspace top bar and pick Parameters. Search by field name, scope to one endpoint, and download all/unique values for any single field, or the whole scoped table as CSV.",
   },
   {
     icon: FileJson,
     title: "Postman v2.1 export",
     purpose: "Takes the extracted collection with you into the real Postman app.",
-    howTo: "Click \"Export Postman\" in the workspace top bar to download a .json file that imports cleanly into Postman.",
+    howTo: "Open the \"Export\" menu in the workspace top bar and pick a Postman collection option to download a .json file that imports cleanly into Postman.",
+  },
+  {
+    icon: FileCode2,
+    title: "API spec generation (OpenAPI/RAML)",
+    purpose: "The actual deliverable reverse-engineering usually needs next - not just a browsable collection, but a spec you can hand to a frontend team, feed into a gateway, or document a legacy app with. Paths are templated from repeated calls (/orders/9901 and /orders/9902 both become /orders/{orderId}), and query/header params and JSON body schemas are merged across every occurrence - the same normalized data the rest of the app already builds.",
+    howTo: "Open the \"Export\" menu in the workspace top bar and pick \"Generate spec…\". Choose OpenAPI 3.0 (JSON or YAML) or RAML 1.0, and scope it to just this app's own inbound endpoints (recommended) or every endpoint including the downstream calls it makes. Sensitive-looking fields - tokens, passwords, secrets, cookies - are redacted from examples automatically.",
   },
   {
     icon: Lock,

@@ -40,6 +40,12 @@ that were made, in a shape you can inspect, filter, and export.
   (exact code or class, e.g. `4xx`), query params, request/response
   headers, or request/response JSON body fields, combined with AND logic
   against the same call.
+- **Flows** — every outbound `REQUESTER` call shares Mule's correlation ID
+  (`X-Correlation-Id` / event id) with the inbound `LISTENER` call that
+  triggered it. The Flows view groups calls by that ID and lays them out as
+  a waterfall — start offset and duration derived from the log's own
+  timestamps — reconstructing the whole transaction instead of one call at
+  a time.
 - **Unique parameters explorer** — every distinct query param and JSON
   body field used across the collection (or scoped to one endpoint), with
   sample values, occurrence counts, and per-field "download all/unique
@@ -52,6 +58,16 @@ that were made, in a shape you can inspect, filter, and export.
 - **Postman v2.1 export** — download the full collection, or just the
   individual calls that errored (status ≥ 400) as their own collection, as
   JSON that imports cleanly into Postman with requests and responses intact.
+- **API spec generation (OpenAPI 3.0 / RAML 1.0)** — the actual deliverable
+  reverse-engineering an API usually needs next, not just a browsable
+  collection. Paths are templated from repeated calls (`/orders/9901` and
+  `/orders/9902` both become `/orders/{orderId}`), and query params, headers,
+  and JSON request/response bodies get a schema inferred and merged across
+  every occurrence of an endpoint — so optional fields are only marked
+  optional if they were genuinely sometimes absent. Scope it to just this
+  app's own inbound endpoints (its real API surface) or include the
+  downstream calls it makes too. Fields that look like secrets (tokens,
+  passwords, cookies, API keys) are redacted from generated examples.
 - **In-app feature guide** — a "Features" dialog on the import screen
   explains what each feature does and how to use it.
 - **Zero backend** — everything from file read to JSON export happens in
@@ -97,7 +113,11 @@ then reads the following lines as an HTTP request or response block
 responses are correlated by Mule's `X-Correlation-Id` / `event:` id, deduped
 by method + host + normalized path (UUIDs/IDs collapsed to `:id`), and
 grouped into folders. `src/lib/postman-export.ts` then maps the result onto
-the Postman Collection v2.1 schema.
+the Postman Collection v2.1 schema; `src/lib/flows.ts` regroups occurrences
+by correlation ID for the timeline view; and `src/lib/spec-model.ts` builds a
+format-agnostic model (path templates, merged JSON Schemas) that
+`openapi-export.ts` and `raml-export.ts` render into OpenAPI/RAML documents
+via a small dependency-free YAML emitter (`src/lib/yaml.ts`).
 
 ## Tech stack
 

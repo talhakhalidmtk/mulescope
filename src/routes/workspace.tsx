@@ -106,7 +106,7 @@ status=201 duration=318ms`}</pre>
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <TopBar collection={collection} />
+      <TopBar collection={collection} onSelectRequest={setSelectedId} />
       <div className="flex-1 min-h-0 flex overflow-hidden">
         <ResizablePanelGroup orientation="horizontal" className="flex-1">
           <ResizablePanel defaultSize="25%" minSize="220px" maxSize="40%">

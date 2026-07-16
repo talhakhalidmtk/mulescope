@@ -88,6 +88,8 @@ interface ReqEntry {
 
 interface ResEntry {
   corrId?: string;
+  /** Timestamp of the log line that opened this response block - used to derive call duration. */
+  timestamp: string;
   status: number;
   statusText: string;
   hdrs: KV[];
@@ -174,6 +176,18 @@ interface OccurrenceData {
   query: KV[];
   body?: { mode: "raw"; raw: string; language: "json" | "text" | "xml" };
   response: ParsedRequest["response"];
+  correlationId?: string;
+  direction: "inbound" | "outbound";
+}
+
+// Both timestamps have already gone through normalizeTimestamp, so they're
+// Date-parseable regardless of which log format (CH 1.0 / CH 2.0) they came from.
+function durationMs(reqTimestamp: string, resTimestamp: string | undefined): number {
+  if (!resTimestamp) return 0;
+  const start = Date.parse(reqTimestamp);
+  const end = Date.parse(resTimestamp);
+  if (Number.isNaN(start) || Number.isNaN(end)) return 0;
+  return Math.max(0, end - start);
 }
 
 // Builds the per-call view (real URL/path, own query params, own body/response) -
@@ -192,7 +206,7 @@ function buildOccurrenceData(req: ReqEntry, res: ResEntry | null): OccurrenceDat
   }
 
   const rawReqBody = req.reqBody.join("\n").replace(TRAILING_SPAN, "").trimEnd();
-  const responseBody = res ? res.bodyLines.join("\n") : "";
+  const responseBody = res ? res.bodyLines.join("\n").replace(TRAILING_SPAN, "").trimEnd() : "";
 
   return {
     timestamp: req.timestamp,
@@ -202,12 +216,14 @@ function buildOccurrenceData(req: ReqEntry, res: ResEntry | null): OccurrenceDat
     response: {
       status: res?.status ?? 0,
       statusText: res ? resolveStatusText(res.status, res.statusText) : "No response captured",
-      timeMs: 0,
+      timeMs: durationMs(req.timestamp, res?.timestamp),
       sizeBytes: res?.contentLength ?? responseBody.length,
       headers: (res?.hdrs ?? []).filter((h) => !SKIP_HEADERS.has(h.key.toLowerCase())),
       body: responseBody,
       language: detectLang(responseBody),
     },
+    correlationId: req.corrId,
+    direction: req.role === "LISTENER" ? "inbound" : "outbound",
   };
 }
 
@@ -277,6 +293,7 @@ function finalizeBlock(
 
     const entry: ResEntry = {
       corrId,
+      timestamp: b.timestamp,
       status: b.status,
       statusText: b.statusText ?? "",
       hdrs,

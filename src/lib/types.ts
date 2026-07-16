@@ -46,6 +46,10 @@ export interface RequestOccurrence {
   query: KV[];
   body?: ParsedRequest["body"];
   response: ParsedRequest["response"];
+  /** Mule's X-Correlation-Id / event id - ties an inbound call to the outbound calls its flow made. */
+  correlationId?: string;
+  /** LISTENER (inbound, received by this app) vs REQUESTER (outbound, made by this app). */
+  direction?: "inbound" | "outbound";
 }
 
 export interface ParsedFolder {
