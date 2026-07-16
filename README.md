@@ -26,16 +26,36 @@ that were made, in a shape you can inspect, filter, and export.
   1.0 worker log formats (different timestamp styles and trace-line shapes),
   chunked-transfer-encoded response bodies, and multi-block responses that
   Mule splits across several log lines.
-- **Postman-style workspace** — folder tree by host/flow, search, method
-  filters, and a request/response split view with Params / Headers / Body /
-  Auth tabs.
-- **Postman v2.1 export** — download a collection that imports cleanly into
-  Postman, requests and responses intact.
+- **Multiple file upload** — drop or select more than one log file (rotated
+  logs, one file per worker, etc.) and they're concatenated and parsed as a
+  single collection.
+- **Postman-style workspace** — folder tree by host/flow, debounced search,
+  method filter chips (GET/POST/PUT/PATCH/DELETE), and a request/response
+  split view with Params / Headers / Body / Auth tabs.
+- **Call occurrences** — path IDs (order numbers, UUIDs, etc.) are
+  normalized so repeat calls to the same endpoint dedupe into one sidebar
+  entry with a `×N` badge; expand it to inspect every individual call with
+  its own real path, timestamp, and response.
+- **Multi-condition filters** — narrow the tree by response status
+  (exact code or class, e.g. `4xx`), query params, request/response
+  headers, or request/response JSON body fields, combined with AND logic
+  against the same call.
+- **Unique parameters explorer** — every distinct query param and JSON
+  body field used across the collection (or scoped to one endpoint), with
+  sample values, occurrence counts, and per-field "download all/unique
+  values" export.
 - **Copy as cURL** — every request can be copied as a runnable `curl`
   command (including headers and body), which is useful since a browser
   can't actually fire most of these requests itself due to CORS.
+- **Per-endpoint call export** — download every occurrence of a single
+  endpoint as JSON (full structured detail), CSV, or Excel (`.xls`).
+- **Postman v2.1 export** — download the full collection, or just the
+  individual calls that errored (status ≥ 400) as their own collection, as
+  JSON that imports cleanly into Postman with requests and responses intact.
+- **In-app feature guide** — a "Features" dialog on the import screen
+  explains what each feature does and how to use it.
 - **Zero backend** — everything from file read to JSON export happens in
-  the browser.
+  the browser; parsing runs in a web worker and nothing is ever uploaded.
 
 ## Getting started
 
