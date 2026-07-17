@@ -13,6 +13,7 @@ import { TopBar } from "@/components/workspace/TopBar";
 import { CollectionSidebar } from "@/components/workspace/CollectionSidebar";
 import { RequestPanel } from "@/components/workspace/RequestPanel";
 import { ResponsePanel } from "@/components/workspace/ResponsePanel";
+import { SITE_URL } from "./__root";
 
 export const Route = createFileRoute("/workspace")({
   head: () => ({
@@ -23,7 +24,13 @@ export const Route = createFileRoute("/workspace")({
         content:
           "Postman-style workspace for endpoints extracted from your Mule log.",
       },
+      { property: "og:url", content: `${SITE_URL}/workspace` },
+      // Only ever has real content after a client-side import (sessionStorage-backed
+      // state) - crawled fresh, it's just an empty "no collection loaded" shell, so
+      // it shouldn't compete with / for ranking or show up as a dead-end result.
+      { name: "robots", content: "noindex, follow" },
     ],
+    links: [{ rel: "canonical", href: `${SITE_URL}/workspace` }],
   }),
   component: Workspace,
 });

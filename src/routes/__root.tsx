@@ -73,19 +73,51 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+export const SITE_URL = "https://mulescope.talhakhalidmtk.me";
+const SITE_TITLE = "MuleScope - Mule Log to Postman Collection & OpenAPI Spec Generator";
+const SITE_DESCRIPTION =
+  "Turn Mule runtime logs into a Postman-style workspace, entirely in your browser. Extract every LISTENER/REQUESTER call, export a Postman v2.1 collection, or generate an OpenAPI 3.0 / RAML 1.0 spec - no backend, nothing uploaded.";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "MuleScope - Mule logs to Postman collections" },
+      { title: SITE_TITLE },
+      { name: "description", content: SITE_DESCRIPTION },
       {
-        name: "description",
+        name: "keywords",
         content:
-          "Analyze Mule runtime logs and export a Postman collection of every HTTP endpoint called.",
+          "mule log parser, mulesoft, mule runtime log, cloudhub log analyzer, mule log to postman, postman collection generator, openapi generator, raml generator, api spec generator, anypoint, mule debug log",
       },
+      { name: "author", content: "Talha Khalid" },
+      { name: "robots", content: "index, follow" },
+      { name: "theme-color", content: "#ff6c37" },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:site_name", content: "MuleScope" },
+      { property: "og:title", content: SITE_TITLE },
+      { property: "og:description", content: SITE_DESCRIPTION },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:image", content: `${SITE_URL}/favicon.svg` },
+      { property: "og:locale", content: "en_US" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: SITE_TITLE },
+      { name: "twitter:description", content: SITE_DESCRIPTION },
+      { name: "twitter:image", content: `${SITE_URL}/favicon.svg` },
+      {
+        "script:ld+json": {
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "MuleScope",
+          description: SITE_DESCRIPTION,
+          applicationCategory: "DeveloperApplication",
+          operatingSystem: "Any (runs in any modern browser)",
+          url: SITE_URL,
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          creator: { "@type": "Person", name: "Talha Khalid", url: "https://talhakhalidmtk.me" },
+          keywords: "mule log parser, mulesoft, postman collection, openapi, raml, cloudhub",
+        },
+      },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

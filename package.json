@@ -1,20 +1,27 @@
 {
   "name": "mulescope",
   "version": "1.0.0",
-  "description": "Turn Mule runtime logs into a browsable Postman-style workspace and export a Postman v2.1 collection - entirely in the browser.",
+  "description": "Turn Mule runtime logs into a browsable Postman-style workspace, a Postman v2.1 collection, or an OpenAPI 3.0 / RAML 1.0 spec - entirely in the browser.",
   "repository": {
     "type": "git",
     "url": "https://github.com/talhakhalidmtk/mulescope.git"
   },
-  "homepage": "https://github.com/talhakhalidmtk/mulescope",
+  "homepage": "https://mulescope.talhakhalidmtk.me",
   "author": "Talha Khalid <talhakhalidmtk@gmail.com> (https://talhakhalidmtk.me)",
   "license": "MIT",
   "keywords": [
     "mulesoft",
     "mule",
     "cloudhub",
+    "anypoint",
     "postman",
+    "postman-collection",
     "log-parser",
+    "mule-log-parser",
+    "openapi",
+    "openapi-generator",
+    "raml",
+    "api-spec-generator",
     "api",
     "devtools"
   ],

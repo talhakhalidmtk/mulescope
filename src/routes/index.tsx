@@ -5,9 +5,9 @@ import {
   ArrowRight,
   Check,
   Download,
+  FileCode2,
   FileJson,
   FileSearch,
-  FolderTree,
   Github,
   Loader2,
   Radar,
@@ -23,17 +23,24 @@ import { MethodBadge } from "@/components/workspace/MethodBadge";
 import { parseAsync } from "@/lib/parse-async";
 import { setCollection } from "@/lib/log-store";
 import { cn } from "@/lib/utils";
+import { SITE_URL } from "./__root";
+
+const PAGE_TITLE = "MuleScope - Mule Log to Postman Collection & OpenAPI Spec Generator";
+const PAGE_DESCRIPTION =
+  "Free tool to reverse-engineer a Mule application's API from its runtime logs. Upload a Mule/CloudHub DEBUG log and get a Postman-style workspace, a Postman v2.1 collection, or an OpenAPI 3.0 / RAML 1.0 spec - entirely client-side, nothing ever uploaded.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "MuleScope - Mule log analyzer" },
-      {
-        name: "description",
-        content:
-          "Analyze Mule runtime logs, browse the extracted endpoints in a Postman-like workspace, and export a Postman v2.1 collection.",
-      },
+      { title: PAGE_TITLE },
+      { name: "description", content: PAGE_DESCRIPTION },
+      { property: "og:title", content: PAGE_TITLE },
+      { property: "og:description", content: PAGE_DESCRIPTION },
+      { property: "og:url", content: SITE_URL },
+      { name: "twitter:title", content: PAGE_TITLE },
+      { name: "twitter:description", content: PAGE_DESCRIPTION },
     ],
+    links: [{ rel: "canonical", href: SITE_URL }],
   }),
   component: Index,
 });
@@ -317,14 +324,14 @@ const FEATURES = [
     body: "Every inbound and outbound HTTP call is reconstructed from DEBUG trace lines - no regex-fu required.",
   },
   {
-    icon: FolderTree,
-    title: "Postman-style workspace",
-    body: "Browse extracted endpoints by folder, filter by method, inspect headers and bodies - a layout you already know.",
-  },
-  {
     icon: FileJson,
     title: "Postman v2.1 export",
     body: "Download a collection that imports cleanly into Postman, requests, responses, and folders intact.",
+  },
+  {
+    icon: FileCode2,
+    title: "OpenAPI 3.0 & RAML export",
+    body: "Generate a real API spec from the log - paths, params, and JSON schemas merged across every call, ready for a frontend team or a gateway.",
   },
   {
     icon: Terminal,
@@ -461,6 +468,9 @@ function Index() {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                   Postman v2.1
                 </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  OpenAPI / RAML
+                </span>
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4 leading-[1.1]">
                 Every API call your Mule app made,{" "}
@@ -469,7 +479,8 @@ function Index() {
               <p className="text-base text-muted-foreground max-w-md mb-7">
                 Drop in a Mule runtime log. MuleScope finds every LISTENER and
                 REQUESTER call, rebuilds the request and response, and gives you
-                a Postman-style workspace - plus a real collection export.
+                a Postman-style workspace - plus a Postman v2.1 collection export
+                and a generated OpenAPI 3.0 or RAML 1.0 spec.
               </p>
               <div className="flex items-center gap-4">
                 <Button
