@@ -6,6 +6,7 @@ import {
   Download,
   FileCode2,
   Github,
+  Menu,
   Radar,
   Search,
   Waypoints,
@@ -67,9 +68,12 @@ function MenuItemRow({
 export function TopBar({
   collection,
   onSelectRequest,
+  onOpenSidebar,
 }: {
   collection: ParsedCollection;
   onSelectRequest: (id: string) => void;
+  /** Present only on compact layouts - renders a menu button that opens the endpoint tree as a sheet. */
+  onOpenSidebar?: () => void;
 }) {
   const total = collection.folders.reduce((n, f) => n + f.requests.length, 0);
   const totalCalls = collection.folders.reduce(
@@ -82,7 +86,19 @@ export function TopBar({
   const errorCount = useMemo(() => countErrorCalls(collection), [collection]);
 
   return (
-    <header className="h-11 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
+    <header className="h-11 border-b border-border bg-surface flex items-center px-2 sm:px-4 gap-2 sm:gap-3 shrink-0">
+      {onOpenSidebar && (
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={onOpenSidebar}
+          className="shrink-0 h-7 w-7 text-muted-foreground hover:text-foreground"
+          aria-label="Browse endpoints"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+      )}
+
       <Link
         to="/"
         className="inline-flex items-center gap-2 shrink-0 group"
@@ -94,13 +110,13 @@ export function TopBar({
         <span className="text-xs font-semibold text-foreground hidden sm:inline">MuleScope</span>
       </Link>
 
-      <div className="h-4 w-px bg-border" />
+      <div className="h-4 w-px bg-border hidden sm:block" />
 
       <div className="min-w-0 flex-1 flex items-baseline gap-2">
         <span className="text-sm font-medium text-foreground truncate">
           {collection.name}
         </span>
-        <span className="text-xs text-muted-foreground shrink-0">
+        <span className="hidden md:inline text-xs text-muted-foreground shrink-0">
           {total} unique endpoint{total !== 1 ? "s" : ""}
           <span className="text-muted-foreground/60"> · {totalCalls} total call{totalCalls !== 1 ? "s" : ""}</span>
         </span>
@@ -112,10 +128,10 @@ export function TopBar({
           <Button
             size="sm"
             variant="outline"
-            className="shrink-0 h-7 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+            className="shrink-0 h-7 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-accent px-2 sm:px-3"
           >
             <Search className="h-3 w-3" />
-            Analyze
+            <span className="hidden sm:inline">Analyze</span>
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
@@ -142,10 +158,10 @@ export function TopBar({
         <DropdownMenuTrigger asChild>
           <Button
             size="sm"
-            className="shrink-0 h-7 text-xs gap-1.5"
+            className="shrink-0 h-7 text-xs gap-1.5 px-2 sm:px-3"
           >
             <Download className="h-3 w-3" />
-            Export
+            <span className="hidden sm:inline">Export</span>
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>

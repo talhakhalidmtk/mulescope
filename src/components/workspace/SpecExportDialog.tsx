@@ -121,9 +121,9 @@ export function SpecExportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Select value={format} onValueChange={(v: Format) => setFormat(v)}>
-            <SelectTrigger className="h-8 w-[190px] text-xs">
+            <SelectTrigger className="h-8 w-[150px] sm:w-[190px] text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -136,7 +136,7 @@ export function SpecExportDialog({
           </Select>
 
           <Select value={scope} onValueChange={(v: SpecScope) => setScope(v)}>
-            <SelectTrigger className="h-8 w-[240px] text-xs">
+            <SelectTrigger className="h-8 w-[150px] sm:w-[240px] text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -149,7 +149,7 @@ export function SpecExportDialog({
             </SelectContent>
           </Select>
 
-          <span className="text-[11px] text-muted-foreground ml-auto shrink-0">
+          <span className="text-[11px] text-muted-foreground sm:ml-auto shrink-0">
             {model.operations.length} operation{model.operations.length !== 1 ? "s" : ""} · {tagCount} tag{tagCount !== 1 ? "s" : ""}
           </span>
         </div>

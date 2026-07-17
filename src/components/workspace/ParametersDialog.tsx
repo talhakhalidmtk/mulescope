@@ -131,31 +131,33 @@ export function ParametersDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Filter by field name"
-              className="h-8 pl-8 text-xs"
-              autoFocus
-            />
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[140px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Filter by field name"
+                className="h-8 pl-8 text-xs"
+                autoFocus
+              />
+            </div>
 
-          <Select value={endpointId} onValueChange={setEndpointId}>
-            <SelectTrigger className="h-8 w-[180px] text-xs">
-              <SelectValue placeholder="All endpoints" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All endpoints</SelectItem>
-              {endpointOptions.map((ep) => (
-                <SelectItem key={ep.requestId} value={ep.requestId}>
-                  {ep.method} {ep.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={endpointId} onValueChange={setEndpointId}>
+              <SelectTrigger className="h-8 w-[150px] sm:w-[180px] text-xs shrink-0">
+                <SelectValue placeholder="All endpoints" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All endpoints</SelectItem>
+                {endpointOptions.map((ep) => (
+                  <SelectItem key={ep.requestId} value={ep.requestId}>
+                    {ep.method} {ep.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <Button
             size="sm"

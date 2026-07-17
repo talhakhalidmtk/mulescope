@@ -56,7 +56,7 @@ function FlowWaterfall({ flow, onSelect }: { flow: Flow; onSelect: (id: string) 
   const scale = flow.totalDurationMs || 1;
   return (
     <div className="rounded-md border border-border bg-surface/60 overflow-hidden">
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-border bg-surface">
         <div className="flex items-center gap-2 min-w-0">
           <span
             className={cn("h-1.5 w-1.5 rounded-full shrink-0", flow.hasError ? "bg-status-error" : "bg-status-success")}
@@ -72,7 +72,7 @@ function FlowWaterfall({ flow, onSelect }: { flow: Flow; onSelect: (id: string) 
         </div>
       </div>
 
-      <div className="divide-y divide-border/60">
+      <div className="divide-y divide-border/60 overflow-x-auto">
         {flow.calls.map((call) => {
           const leftPct = (call.startOffsetMs / scale) * 100;
           const widthPct = Math.max((call.durationMs / scale) * 100, 1.5);
@@ -81,7 +81,7 @@ function FlowWaterfall({ flow, onSelect }: { flow: Flow; onSelect: (id: string) 
               key={call.occurrenceId}
               onClick={() => onSelect(call.occurrenceId)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent/60 transition-colors",
+                "w-full min-w-[420px] flex items-center gap-3 px-3 py-2 text-left hover:bg-accent/60 transition-colors",
                 call.direction === "outbound" && "pl-7",
               )}
               title={`${call.method} ${call.url}`}

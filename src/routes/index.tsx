@@ -19,9 +19,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadDropzone } from "@/components/import/UploadDropzone";
 import { FeaturesDialog } from "@/components/import/FeaturesDialog";
+import { LiveDemo } from "@/components/import/LiveDemo";
 import { MethodBadge } from "@/components/workspace/MethodBadge";
 import { parseAsync } from "@/lib/parse-async";
 import { setCollection } from "@/lib/log-store";
+import { SAMPLE_LOG } from "@/lib/sample-log";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "./__root";
 
@@ -44,91 +46,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Index,
 });
-
-// ─── Sample log ───────────────────────────────────────────────────────────────
-
-const SAMPLE = `2026-06-29T09:14:00.100Z DEBUG [wrk01] HTTP_Listener_config http.listener.01 SelectorRunner - LISTENER
-GET /api/orders/ORD-9901/items HTTP/1.1
-Accept: application/json
-X-Correlation-Id: a1b2c3d4-0001-0001-0001-000000000001
-X-Forwarded-Proto: https
-X-Forwarded-Host: x-acme-orders-api.cloudhub.io
-Host: x-acme-orders-api.internal.svc
-
-2026-06-29T09:14:00.110Z INFO [wrk01] LoggerMessageProcessor event:a1b2c3d4-0001-0001-0001-000000000001 [MuleRuntime].uber.100 @abc - [Environment: prod] [Application: x-acme-orders-api] [Flow: x-get-order-items-flow] [Transaction Id: a1b2c3d4-0001-0001-0001-000000000001] - Before calling backend
-2026-06-29T09:14:00.120Z DEBUG [wrk01] backend-config event:a1b2c3d4-0001-0001-0001-000000000001 [x-acme-orders-api].http.requester.backend-config.01 SelectorRunner - REQUESTER
-GET /api/orders/ORD-9901/items HTTP/1.1
-x-correlation-id: a1b2c3d4-0001-0001-0001-000000000001
-Host: s-acme-backend-api.cloudhub.io:443
-User-Agent: AHC/1.0
-
- spanId=aabbccdd
-
-2026-06-29T09:14:00.310Z DEBUG [wrk01] backend-config event:a1b2c3d4-0001-0001-0001-000000000001 [x-acme-orders-api].http.requester.backend-config.01 SelectorRunner - REQUESTER
-HTTP/1.1 200 OK
-Content-Type: application/json
-Content-Length: 89
-
-{"items":[{"id":"ITM-1","name":"Widget","qty":3,"price":9.99}]} spanId=aabbccdd
-
-2026-06-29T09:14:01.000Z DEBUG [wrk01] HTTP_Listener_config http.listener.01 SelectorRunner - LISTENER
-POST /api/orders HTTP/1.1
-Content-Type: application/json
-X-Correlation-Id: b2c3d4e5-0002-0002-0002-000000000002
-X-Forwarded-Proto: https
-X-Forwarded-Host: x-acme-orders-api.cloudhub.io
-Host: x-acme-orders-api.internal.svc
-
-{"customerId":"CUST-42","items":[{"sku":"WGT-001","qty":2},{"sku":"WGT-002","qty":1}],"shippingAddress":{"line1":"123 Main St","city":"Dubai","country":"AE"}}
-
-2026-06-29T09:14:01.010Z INFO [wrk01] LoggerMessageProcessor event:b2c3d4e5-0002-0002-0002-000000000002 [MuleRuntime].uber.101 @abc - [Environment: prod] [Application: x-acme-orders-api] [Flow: x-create-order-flow] [Transaction Id: b2c3d4e5-0002-0002-0002-000000000002] - Creating new order
-2026-06-29T09:14:01.020Z DEBUG [wrk01] backend-config event:b2c3d4e5-0002-0002-0002-000000000002 [x-acme-orders-api].http.requester.backend-config.02 SelectorRunner - REQUESTER
-POST /api/orders HTTP/1.1
-Content-Type: application/json
-Transfer-Encoding: chunked
-x-correlation-id: b2c3d4e5-0002-0002-0002-000000000002
-Host: s-acme-backend-api.cloudhub.io:443
-User-Agent: AHC/1.0
-
-9f
-{"customerId":"CUST-42","items":[{"sku":"WGT-001","qty":2},{"sku":"WGT-002","qty":1}],"shippingAddress":{"line1":"123 Main St","city":"Dubai","country":"AE"}}
- spanId=11223344
-
-2026-06-29T09:14:01.350Z DEBUG [wrk01] backend-config event:b2c3d4e5-0002-0002-0002-000000000002 [x-acme-orders-api].http.requester.backend-config.02 SelectorRunner - REQUESTER
-HTTP/1.1 201 Created
-Content-Type: application/json
-Content-Length: 122
-
- spanId=11223344
-
-2026-06-29T09:14:01.351Z DEBUG [wrk01] backend-config event:b2c3d4e5-0002-0002-0002-000000000002 [x-acme-orders-api].http.requester.backend-config.02 SelectorRunner - REQUESTER
-{"id":"ORD-9902","status":"pending","customerId":"CUST-42","totalAmount":59.97,"currency":"USD"} spanId=11223344
-
-2026-06-29T09:14:01.400Z DEBUG [wrk01] HTTP_Listener_config event:b2c3d4e5-0002-0002-0002-000000000002 [MuleRuntime].uber.101 @abc - [x-acme-orders-api].get:\\api\\orders:x-acme-orders-api-config.CPU_INTENSIVE @def SelectorRunner - LISTENER
-HTTP/1.1 201 Created
-Content-Type: application/json
-Content-Length: 122
-
-{"id":"ORD-9902","status":"pending","customerId":"CUST-42","totalAmount":59.97,"currency":"USD"} spanId=11223344
-
-2026-06-29T09:14:02.000Z DEBUG [wrk01] HTTP_Listener_config http.listener.01 SelectorRunner - LISTENER
-DELETE /api/orders/ORD-8800 HTTP/1.1
-Accept: application/json
-X-Correlation-Id: c3d4e5f6-0003-0003-0003-000000000003
-X-Forwarded-Proto: https
-X-Forwarded-Host: x-acme-orders-api.cloudhub.io
-
-2026-06-29T09:14:02.120Z DEBUG [wrk01] backend-config event:c3d4e5f6-0003-0003-0003-000000000003 [x-acme-orders-api].http.requester.backend-config.03 SelectorRunner - REQUESTER
-DELETE /api/orders/ORD-8800 HTTP/1.1
-x-correlation-id: c3d4e5f6-0003-0003-0003-000000000003
-Host: s-acme-backend-api.cloudhub.io:443
-
- spanId=33445566
-
-2026-06-29T09:14:02.300Z DEBUG [wrk01] backend-config event:c3d4e5f6-0003-0003-0003-000000000003 [x-acme-orders-api].http.requester.backend-config.03 SelectorRunner - REQUESTER
-HTTP/1.1 204 No Content
-Content-Length: 0
- spanId=33445566`;
 
 // ─── Loading stage types ──────────────────────────────────────────────────────
 
@@ -416,13 +333,13 @@ function Index() {
   };
 
   const handleAnalyze = () => {
-    const text = paste.trim() || SAMPLE;
+    const text = paste.trim() || SAMPLE_LOG;
     const name = source ?? "pasted.log";
     void run(text, name, text.length, true);
   };
 
   const handleQuickStart = () => {
-    void run(SAMPLE, "sample.log", SAMPLE.length, true);
+    void run(SAMPLE_LOG, "sample.log", SAMPLE_LOG.length, true);
   };
 
   const reset = () => {
@@ -458,7 +375,7 @@ function Index() {
           <div className="absolute inset-0 bg-grid pointer-events-none" aria-hidden="true" />
           <div className="relative mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
             <div>
-              <div className="flex items-center gap-2 mb-5">
+              <div className="flex flex-wrap items-center gap-2 mb-5">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                   CloudHub 2.0
                 </span>
@@ -482,7 +399,7 @@ function Index() {
                 a Postman-style workspace - plus a Postman v2.1 collection export
                 and a generated OpenAPI 3.0 or RAML 1.0 spec.
               </p>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <Button
                   size="lg"
                   onClick={handleQuickStart}
@@ -508,6 +425,19 @@ function Index() {
         <section className="px-6 py-14 border-b border-border/60">
           <div className="mx-auto max-w-5xl">
             <FeatureCards />
+          </div>
+        </section>
+
+        {/* Live demo */}
+        <section className="px-6 py-14 border-b border-border/60">
+          <div className="mx-auto max-w-5xl">
+            <div className="text-center mb-8">
+              <p className="text-sm font-medium text-muted-foreground mb-2">See it in action</p>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                This is the real workspace - <span className="text-brand">try it right here.</span>
+              </h2>
+            </div>
+            <LiveDemo />
           </div>
         </section>
 
@@ -548,7 +478,7 @@ function Index() {
                     <p className="text-xs text-muted-foreground">Raw log content</p>
                     <button
                       onClick={() => {
-                        setPaste(SAMPLE);
+                        setPaste(SAMPLE_LOG);
                         setSource("sample.log");
                       }}
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"

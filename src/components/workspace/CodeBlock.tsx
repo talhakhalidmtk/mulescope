@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,10 @@ function formatCode(code: string, language?: string): string {
 }
 
 export function CodeBlock({ code, language }: { code: string; language?: string }) {
-  const displayCode = formatCode(code, language);
+  // Reformatting is a JSON.parse + JSON.stringify pass over the whole body -
+  // for large captured responses that's expensive enough to jank an unrelated
+  // re-render (e.g. opening the mobile sidebar sheet) if redone every time.
+  const displayCode = useMemo(() => formatCode(code, language), [code, language]);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -43,7 +46,7 @@ export function CodeBlock({ code, language }: { code: string; language?: string 
           )}
         </div>
       )}
-      <pre className="p-3 text-xs font-mono leading-relaxed text-foreground/85 whitespace-pre">
+      <pre className="p-3 text-xs font-mono leading-relaxed text-foreground/85 whitespace-pre overflow-x-auto">
         {displayCode || <span className="text-muted-foreground italic">empty</span>}
       </pre>
     </div>

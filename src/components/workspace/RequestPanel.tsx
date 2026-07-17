@@ -48,8 +48,8 @@ export function RequestPanel({ request }: { request: ParsedRequest }) {
     <div className="flex flex-col h-full">
       {/* URL bar */}
       <div className="px-4 py-3 border-b border-border bg-surface shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-3 h-8 rounded-md bg-background/80 border border-border/60 px-3 font-mono min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 basis-full sm:basis-auto flex items-center gap-3 h-8 rounded-md bg-background/80 border border-border/60 px-3 font-mono min-w-0">
             <MethodBadge method={request.method} className="shrink-0 text-[11px]" />
             <div className="h-3.5 w-px bg-border shrink-0" />
             <span className="text-xs text-foreground/80 truncate">{request.url}</span>
@@ -65,7 +65,7 @@ export function RequestPanel({ request }: { request: ParsedRequest }) {
             ) : (
               <Terminal className="h-3.5 w-3.5" />
             )}
-            {copied ? "Copied" : "Copy as cURL"}
+            <span className="hidden sm:inline">{copied ? "Copied" : "Copy as cURL"}</span>
           </Button>
 
           <DropdownMenu>
@@ -77,7 +77,7 @@ export function RequestPanel({ request }: { request: ParsedRequest }) {
                 title={`Download all ${callCount} call${callCount !== 1 ? "s" : ""} to this endpoint`}
               >
                 <Download className="h-3.5 w-3.5" />
-                Export calls
+                <span className="hidden sm:inline">Export calls</span>
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>

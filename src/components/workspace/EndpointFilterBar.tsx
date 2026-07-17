@@ -80,7 +80,7 @@ export function EndpointFilterBar({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[420px] p-3">
+        <PopoverContent align="start" className="w-[calc(100vw-2rem)] sm:w-[420px] p-3">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold text-foreground">Filter by request/response</p>
             {filters.length > 0 && (
@@ -103,7 +103,7 @@ export function EndpointFilterBar({
               const needsKey = filterFieldNeedsKey(f.field);
               const options = keysFor(f.field);
               return (
-                <div key={f.id} className="flex items-center gap-1.5">
+                <div key={f.id} className="flex items-center gap-1.5 overflow-x-auto">
                   <Select
                     value={f.field}
                     onValueChange={(field: FilterField) => update(f.id, { field, key: "" })}
