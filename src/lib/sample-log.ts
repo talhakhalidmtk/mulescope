@@ -81,4 +81,52 @@ Host: s-acme-backend-api.cloudhub.io:443
 2026-06-29T09:14:02.300Z DEBUG [wrk01] backend-config event:c3d4e5f6-0003-0003-0003-000000000003 [x-acme-orders-api].http.requester.backend-config.03 SelectorRunner - REQUESTER
 HTTP/1.1 204 No Content
 Content-Length: 0
- spanId=33445566`;
+ spanId=33445566
+
+2026-06-29T09:14:03.000Z DEBUG [wrk02] HTTP_Listener_config http.listener.02 SelectorRunner - LISTENER
+GET /api/payments/PAY-501/order-items HTTP/1.1
+Accept: application/json
+X-Correlation-Id: d4e5f6a7-0004-0004-0004-000000000004
+X-Forwarded-Proto: https
+X-Forwarded-Host: x-acme-payments-api.cloudhub.io
+Host: x-acme-payments-api.internal.svc
+
+2026-06-29T09:14:03.010Z INFO [wrk02] LoggerMessageProcessor event:d4e5f6a7-0004-0004-0004-000000000004 [MuleRuntime].uber.102 @abc - [Environment: prod] [Application: x-acme-payments-api] [Flow: x-lookup-order-items-flow] [Transaction Id: d4e5f6a7-0004-0004-0004-000000000004] - Fetching order items before charge
+2026-06-29T09:14:03.020Z DEBUG [wrk02] backend-config event:d4e5f6a7-0004-0004-0004-000000000004 [x-acme-payments-api].http.requester.backend-config.01 SelectorRunner - REQUESTER
+GET /api/orders/ORD-9903/items HTTP/1.1
+x-correlation-id: d4e5f6a7-0004-0004-0004-000000000004
+Host: s-acme-backend-api.cloudhub.io:443
+User-Agent: AHC/1.0
+
+ spanId=55667788
+
+2026-06-29T09:14:03.210Z DEBUG [wrk02] backend-config event:d4e5f6a7-0004-0004-0004-000000000004 [x-acme-payments-api].http.requester.backend-config.01 SelectorRunner - REQUESTER
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: 89
+
+{"items":[{"id":"ITM-9","name":"Widget","qty":1,"price":9.99}]} spanId=55667788
+
+2026-06-29T09:14:04.000Z DEBUG [wrk03] HTTP_Listener_config http.listener.03 SelectorRunner - LISTENER
+GET /api/orders/ORD-7000/items HTTP/1.1
+Accept: application/json
+X-Correlation-Id: e5f6a7b8-0005-0005-0005-000000000005
+X-Forwarded-Proto: https
+X-Forwarded-Host: x-acme-mobile-gateway.cloudhub.io
+Host: x-acme-mobile-gateway.internal.svc
+
+2026-06-29T09:14:04.010Z INFO [wrk03] LoggerMessageProcessor event:e5f6a7b8-0005-0005-0005-000000000005 [MuleRuntime].uber.103 @abc - [Environment: prod] [Application: x-acme-mobile-gateway] [Flow: x-get-order-items-legacy-flow] [Transaction Id: e5f6a7b8-0005-0005-0005-000000000005] - Proxying to legacy order service
+2026-06-29T09:14:04.020Z DEBUG [wrk03] legacy-config event:e5f6a7b8-0005-0005-0005-000000000005 [x-acme-mobile-gateway].http.requester.legacy-config.01 SelectorRunner - REQUESTER
+GET /orders/ORD-7000/items HTTP/1.1
+x-correlation-id: e5f6a7b8-0005-0005-0005-000000000005
+Host: s-acme-legacy-orders.cloudhub.io:443
+User-Agent: AHC/1.0
+
+ spanId=99887766
+
+2026-06-29T09:14:04.210Z DEBUG [wrk03] legacy-config event:e5f6a7b8-0005-0005-0005-000000000005 [x-acme-mobile-gateway].http.requester.legacy-config.01 SelectorRunner - REQUESTER
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: 89
+
+{"items":[{"id":"ITM-2","name":"Widget","qty":2,"price":9.99}]} spanId=99887766`;

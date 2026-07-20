@@ -50,6 +50,8 @@ export interface RequestOccurrence {
   correlationId?: string;
   /** LISTENER (inbound, received by this app) vs REQUESTER (outbound, made by this app). */
   direction?: "inbound" | "outbound";
+  /** The exact hostname of the app this call belongs to - one hostname is one app, used for cross-app sprawl detection. */
+  sourceApp?: string;
 }
 
 export interface ParsedFolder {

@@ -7,6 +7,7 @@ import {
   FileCode2,
   Github,
   Menu,
+  Network,
   Radar,
   Search,
   Waypoints,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/postman-export";
 import { ParametersDialog } from "./ParametersDialog";
 import { FlowsDialog } from "./FlowsDialog";
+import { SprawlDialog } from "./SprawlDialog";
 import { SpecExportDialog } from "./SpecExportDialog";
 
 const MENU_LABEL_CLASS = "px-2 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70";
@@ -82,6 +84,7 @@ export function TopBar({
   );
   const [paramsOpen, setParamsOpen] = useState(false);
   const [flowsOpen, setFlowsOpen] = useState(false);
+  const [sprawlOpen, setSprawlOpen] = useState(false);
   const [specOpen, setSpecOpen] = useState(false);
   const errorCount = useMemo(() => countErrorCalls(collection), [collection]);
 
@@ -148,10 +151,17 @@ export function TopBar({
             description="Calls grouped by Mule correlation ID into a timeline waterfall."
             onClick={() => setFlowsOpen(true)}
           />
+          <MenuItemRow
+            icon={Network}
+            title="API Sprawl"
+            description="Endpoints called the same way by more than one uploaded log/app."
+            onClick={() => setSprawlOpen(true)}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
       <ParametersDialog collection={collection} open={paramsOpen} onOpenChange={setParamsOpen} />
       <FlowsDialog collection={collection} open={flowsOpen} onOpenChange={setFlowsOpen} onSelect={onSelectRequest} />
+      <SprawlDialog collection={collection} open={sprawlOpen} onOpenChange={setSprawlOpen} onSelect={onSelectRequest} />
 
       {/* "Export" - things that end in a download: Postman collection, API spec */}
       <DropdownMenu>

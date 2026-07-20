@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
   Check,
   Download,
@@ -10,9 +11,12 @@ import {
   FileSearch,
   Github,
   Loader2,
+  Network,
   Radar,
   Terminal,
+  Upload,
   Wand2,
+  Waypoints,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,8 +25,9 @@ import { UploadDropzone } from "@/components/import/UploadDropzone";
 import { FeaturesDialog } from "@/components/import/FeaturesDialog";
 import { LiveDemo } from "@/components/import/LiveDemo";
 import { MethodBadge } from "@/components/workspace/MethodBadge";
-import { parseAsync } from "@/lib/parse-async";
+import { parseAsync, parseAsyncSources } from "@/lib/parse-async";
 import { setCollection } from "@/lib/log-store";
+import type { ParsedCollection } from "@/lib/types";
 import { SAMPLE_LOG } from "@/lib/sample-log";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "./__root";
@@ -251,11 +256,61 @@ const FEATURES = [
     body: "Generate a real API spec from the log - paths, params, and JSON schemas merged across every call, ready for a frontend team or a gateway.",
   },
   {
+    icon: Waypoints,
+    title: "Flows timeline",
+    body: "Calls that share a Mule correlation ID, laid out as a waterfall - the inbound call and every outbound call its flow made, in order.",
+  },
+  {
+    icon: Network,
+    title: "API sprawl detection",
+    body: "Upload logs from more than one app and see which endpoints get called the exact same way more than once - duplicated integrations, surfaced automatically.",
+  },
+  {
+    icon: AlertTriangle,
+    title: "Errors-only export",
+    body: "Download just the failed calls (status ≥ 400) as their own Postman collection, ready to hand off for debugging.",
+  },
+  {
     icon: Terminal,
     title: "Copy as cURL",
     body: "Every request can be copied as a ready-to-run curl command, headers and body included.",
   },
 ];
+
+const HOW_IT_WORKS = [
+  {
+    icon: Upload,
+    title: "Upload or paste",
+    body: "Drop in one Mule DEBUG log, or several - one per app - straight from CloudHub 1.0 or 2.0.",
+  },
+  {
+    icon: Radar,
+    title: "MuleScope parses it",
+    body: "Every LISTENER and REQUESTER block is reconstructed, deduplicated, and grouped into folders - entirely in your browser.",
+  },
+  {
+    icon: Download,
+    title: "Inspect or export",
+    body: "Browse the Postman-style workspace, or export a Postman collection, an OpenAPI/RAML spec, or a sprawl report.",
+  },
+];
+
+function HowItWorks() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {HOW_IT_WORKS.map((step, i) => (
+        <div key={step.title} className="relative rounded-lg border border-border bg-card p-4">
+          <span className="absolute -top-2.5 -left-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-brand-foreground text-[11px] font-semibold">
+            {i + 1}
+          </span>
+          <step.icon className="h-5 w-5 text-foreground mb-3" strokeWidth={1.75} />
+          <p className="text-sm font-semibold text-foreground mb-1">{step.title}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{step.body}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function FeatureCards() {
   return (
@@ -285,21 +340,14 @@ function Index() {
   const [fileSize, setFileSize] = useState(0);
   const [error, setError]     = useState<string | null>(null);
 
-  const run = async (raw: string, name: string, size: number, skipRead: boolean) => {
-    setFileName(name);
-    setFileSize(size);
-    setError(null);
-
+  // Shared tail once a parse has been kicked off - handles the
+  // parsing/building stage transitions, storing the result, and navigating.
+  // Used by both the single-string path (paste/sample log) and the
+  // multi-source path (file upload) below.
+  const finishParsing = async (parse: () => Promise<ParsedCollection>) => {
     try {
-      if (!skipRead) {
-        // Stage shown during file.text() - the dropzone already called this,
-        // so for files this stage is brief but visible.
-        setStage("reading");
-        await Promise.resolve(); // yield so React can paint "reading" state
-      }
-
       setStage("parsing");
-      const collection = await parseAsync(raw, name);
+      const collection = await parse();
 
       setStage("building");
       setCollection(collection);
@@ -313,6 +361,21 @@ function Index() {
     }
   };
 
+  const run = async (raw: string, name: string, size: number, skipRead: boolean) => {
+    setFileName(name);
+    setFileSize(size);
+    setError(null);
+
+    if (!skipRead) {
+      // Stage shown during file.text() - the dropzone already called this,
+      // so for files this stage is brief but visible.
+      setStage("reading");
+      await Promise.resolve(); // yield so React can paint "reading" state
+    }
+
+    await finishParsing(() => parseAsync(raw, name));
+  };
+
   const handleFiles = async (files: File[]) => {
     const totalSize = files.reduce((n, f) => n + f.size, 0);
     const label = files.length === 1 ? files[0].name : `${files.length} log files combined`;
@@ -320,16 +383,22 @@ function Index() {
     setFileSize(totalSize);
     setStage("reading");
     setError(null);
+
+    // Each file is parsed as its own source and tagged with its filename, so
+    // calls to the same endpoint from different files can be told apart
+    // (cross-app API sprawl detection) while still deduping together exactly
+    // like same-file duplicates always have.
+    let sources: { name: string; raw: string }[];
     try {
-      // Concatenated in the order picked - the parser reads line by line, so
-      // multiple files (e.g. rotated logs, or one per worker) are treated as
-      // one continuous stream and merged into a single collection.
       const texts = await Promise.all(files.map((f) => f.text()));
-      await run(texts.join("\n"), label, totalSize, true);
+      sources = files.map((f, i) => ({ name: f.name, raw: texts[i] }));
     } catch (err) {
       setStage("error");
       setError(String(err));
+      return;
     }
+
+    await finishParsing(() => parseAsyncSources(sources));
   };
 
   const handleAnalyze = () => {
@@ -421,9 +490,22 @@ function Index() {
           </div>
         </section>
 
+        {/* How it works */}
+        <section className="px-6 py-14 border-b border-border/60">
+          <div className="mx-auto max-w-5xl">
+            <p className="text-center text-sm font-medium text-muted-foreground mb-8">
+              How it works
+            </p>
+            <HowItWorks />
+          </div>
+        </section>
+
         {/* Features */}
         <section className="px-6 py-14 border-b border-border/60">
           <div className="mx-auto max-w-5xl">
+            <p className="text-center text-sm font-medium text-muted-foreground mb-8">
+              Everything the workspace can do
+            </p>
             <FeatureCards />
           </div>
         </section>
@@ -469,7 +551,7 @@ function Index() {
                 <TabsContent value="upload" className="p-5 mt-0">
                   <UploadDropzone onFiles={(files) => void handleFiles(files)} />
                   <p className="text-[11px] text-muted-foreground/70 mt-2">
-                    Select or drop multiple files to combine them into one collection - no fixed size limit, parsed locally in your browser
+                    Select or drop multiple files - one per app - to combine them into one collection and surface API sprawl: endpoints different apps call the same way. No fixed size limit, parsed locally in your browser.
                   </p>
                 </TabsContent>
 

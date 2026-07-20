@@ -80,6 +80,13 @@ interface ReqEntry {
   timestamp: string;
   corrId?: string;
   appName?: string;
+  /**
+   * The exact hostname of the app this call belongs to, for cross-app sprawl
+   * detection (see `deriveSourceApps`). One hostname is one app - kept as the
+   * raw host, not a prettified label, so it's unambiguous which hostname is
+   * responsible for a given call.
+   */
+  sourceApp?: string;
   method: HttpMethod;
   path: string;
   hdrs: KV[];
@@ -105,7 +112,7 @@ function resolveStatusText(code: number, raw: string): string {
   return /^[A-Za-z ]{2,40}$/.test(t) ? t : (STATUS_TEXT[code] ?? "Unknown");
 }
 
-function normalizePath(p: string): string {
+export function normalizePath(p: string): string {
   return p.split("/").map((seg) => {
     if (!seg) return seg;
     if (/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(seg)) return ":id";
@@ -129,6 +136,39 @@ function buildUrl(role: "LISTENER" | "REQUESTER", hdrs: KV[], path: string): str
   }
   const host = (m.get("host") ?? "localhost").replace(/:443$/, "");
   return `https://${host}${path}`;
+}
+
+function ownHost(req: ReqEntry): string | undefined {
+  const host = req.hdrs.find((h) => h.key.toLowerCase() === "x-forwarded-host")?.value
+    ?? req.hdrs.find((h) => h.key.toLowerCase() === "host")?.value;
+  return host?.split(":")[0];
+}
+
+// One hostname is one app: a LISTENER block's own host is that app's identity.
+// A REQUESTER block doesn't carry its own app's host (only the downstream
+// host it's calling), so it inherits its owning app via the Mule correlation
+// ID shared with the LISTENER call that triggered its flow - this works
+// whether the whole log came from one file, several uploaded files, or a
+// single pasted/sample blob that happens to interleave more than one app's
+// traffic, since attribution never depends on file boundaries.
+// `fallbackForIndex` is a last resort for REQUESTER blocks whose corrId has
+// no matching LISTENER in this dataset (e.g. a downstream-only excerpt) -
+// only meaningful when parsing multiple named sources.
+function deriveSourceApps(reqs: ReqEntry[], fallbackForIndex?: (i: number) => string | undefined): void {
+  const hostByCorrId = new Map<string, string>();
+  for (const req of reqs) {
+    if (req.role !== "LISTENER" || !req.corrId) continue;
+    const host = ownHost(req);
+    if (host) hostByCorrId.set(req.corrId.toLowerCase(), host);
+  }
+
+  reqs.forEach((req, i) => {
+    const host = req.role === "LISTENER" ? ownHost(req) : (req.corrId ? hostByCorrId.get(req.corrId.toLowerCase()) : undefined);
+    // The raw hostname is the app identity - kept exact (not prettified) so the
+    // sprawl UI can show precisely which hostname is responsible for a call.
+    if (host) req.sourceApp = host;
+    else if (fallbackForIndex) req.sourceApp = fallbackForIndex(i);
+  });
 }
 
 function folderFromHost(host: string): string {
@@ -178,6 +218,7 @@ interface OccurrenceData {
   response: ParsedRequest["response"];
   correlationId?: string;
   direction: "inbound" | "outbound";
+  sourceApp?: string;
 }
 
 // Both timestamps have already gone through normalizeTimestamp, so they're
@@ -224,6 +265,7 @@ function buildOccurrenceData(req: ReqEntry, res: ResEntry | null): OccurrenceDat
     },
     correlationId: req.corrId,
     direction: req.role === "LISTENER" ? "inbound" : "outbound",
+    sourceApp: req.sourceApp,
   };
 }
 
@@ -316,15 +358,18 @@ function finalizeBlock(
 
 // ─── Main parser ───────────────────────────────────────────────────────────────
 
-export function parseMuleLog(raw: string, sourceName = "mule.log"): ParsedCollection {
-  _seq = 0;
-
-  const lines = raw.split(/\r?\n/);
-  const reqs: ReqEntry[]        = [];
-  const ress: ResEntry[]        = [];
-  const state: ParseState       = { resByCorr: new Map() };
-  const flowMeta = new Map<string, FlowMeta>();
-
+// Scans one source's lines into the shared reqs/ress/state/flowMeta accumulators.
+// Every block found is tagged with `sourceApp` (which uploaded file/app it came
+// from) so calls to the same endpoint from different sources can later be told
+// apart for cross-app sprawl detection, while still deduping together exactly
+// like same-source duplicates always have.
+function scanLines(
+  lines: string[],
+  reqs: ReqEntry[],
+  ress: ResEntry[],
+  state: ParseState,
+  flowMeta: Map<string, FlowMeta>,
+): void {
   let cur: ActiveBlock | null = null;
 
   for (const line of lines) {
@@ -446,7 +491,11 @@ export function parseMuleLog(raw: string, sourceName = "mule.log"): ParsedCollec
 
   // Finalize any block still open at EOF
   if (cur) finalizeBlock(cur, reqs, ress, state);
+}
 
+// Dedupes/assembles accumulated reqs+ress into a ParsedCollection. Shared by
+// both the single-source and multi-source (cross-app) entry points below.
+function buildCollection(reqs: ReqEntry[], ress: ResEntry[], collectionName: string): ParsedCollection {
   // ── No results guard ──────────────────────────────────────────────────────
   if (reqs.length === 0) {
     return {
@@ -544,13 +593,65 @@ export function parseMuleLog(raw: string, sourceName = "mule.log"): ParsedCollec
     .map(([name, requests]) => ({ id: uid("fld"), name, requests }));
 
   const total = folders.reduce((n, f) => n + f.requests.length, 0);
-  const baseName = sourceName.replace(/\.[^.]+$/, "");
 
   return {
     id: uid("col"),
-    name: `${baseName} - Extracted Collection`,
+    name: collectionName,
     description: `Auto-generated from Mule application logs. ${total} unique endpoint${total !== 1 ? "s" : ""} discovered across ${folders.length} folder${folders.length !== 1 ? "s" : ""}.`,
     generatedAt: new Date().toISOString(),
     folders,
   };
+}
+
+export function parseMuleLog(raw: string, sourceName = "mule.log"): ParsedCollection {
+  _seq = 0;
+
+  const reqs: ReqEntry[]  = [];
+  const ress: ResEntry[]  = [];
+  const state: ParseState = { resByCorr: new Map() };
+  const flowMeta = new Map<string, FlowMeta>();
+
+  scanLines(raw.split(/\r?\n/), reqs, ress, state, flowMeta);
+  // No filename fallback here - a single blob's app attribution comes purely
+  // from its own LISTENER hosts, so a paste/sample log that happens to
+  // interleave more than one app's traffic still surfaces sprawl correctly.
+  deriveSourceApps(reqs);
+
+  const baseName = sourceName.replace(/\.[^.]+$/, "");
+  return buildCollection(reqs, ress, `${baseName} - Extracted Collection`);
+}
+
+/**
+ * Parses multiple log sources (one per uploaded file) into a single
+ * ParsedCollection. Calls that resolve to the same endpoint across different
+ * sources dedupe together exactly like same-source duplicates always have,
+ * and every occurrence carries `sourceApp` (see `deriveSourceApps`) so
+ * cross-app duplication (API sprawl) can be detected downstream - including
+ * within a single source, if it interleaves more than one app's traffic.
+ */
+export function parseMuleLogSources(sources: { name: string; raw: string }[]): ParsedCollection {
+  _seq = 0;
+
+  const reqs: ReqEntry[]  = [];
+  const ress: ResEntry[]  = [];
+  const state: ParseState = { resByCorr: new Map() };
+  const flowMeta = new Map<string, FlowMeta>();
+
+  const ranges: { start: number; end: number; fallback: string }[] = [];
+  for (const source of sources) {
+    const start = reqs.length;
+    scanLines(source.raw.split(/\r?\n/), reqs, ress, state, flowMeta);
+    ranges.push({ start, end: reqs.length, fallback: source.name.replace(/\.[^.]+$/, "") });
+  }
+
+  // Fallback only kicks in for a REQUESTER block whose corrId has no matching
+  // LISTENER anywhere in the combined dataset - attribute it to whichever
+  // uploaded file it was found in.
+  deriveSourceApps(reqs, (i) => ranges.find((r) => i >= r.start && i < r.end)?.fallback);
+
+  const name = sources.length === 1
+    ? `${sources[0].name.replace(/\.[^.]+$/, "")} - Extracted Collection`
+    : `${sources.length} apps combined - Extracted Collection`;
+
+  return buildCollection(reqs, ress, name);
 }
