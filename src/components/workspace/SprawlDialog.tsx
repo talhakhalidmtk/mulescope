@@ -16,7 +16,7 @@ import type { ParsedCollection } from "@/lib/types";
 import { analyzeSprawl, type SprawlHotspot, type SprawlKind, type SprawlReport } from "@/lib/sprawl";
 import { MethodBadge } from "./MethodBadge";
 
-// Plain-language, from the apps' point of view: what did these hostnames do
+// Plain-language, from the apps' point of view: what did these apps do
 // to end up in the same row - call it, or expose it.
 const KIND_LABEL: Record<SprawlKind, string> = {
   "outbound-duplicate": "Called by multiple apps",
@@ -24,8 +24,8 @@ const KIND_LABEL: Record<SprawlKind, string> = {
 };
 
 const KIND_HINT: Record<SprawlKind, string> = {
-  "outbound-duplicate": "Every hostname below calls this exact same downstream endpoint - the same integration, built more than once.",
-  "inbound-duplicate": "Every hostname below independently exposes this same endpoint to its own consumers.",
+  "outbound-duplicate": "Every app below calls this exact same downstream endpoint - the same integration, built more than once.",
+  "inbound-duplicate": "Every app below independently exposes this same endpoint to its own consumers.",
 };
 
 const KIND_BADGE_CLASS: Record<SprawlKind, string> = {
@@ -95,7 +95,7 @@ function HotspotRow({ hotspot, onSelect }: { hotspot: SprawlHotspot; onSelect: (
       </div>
       <p className="text-[10.5px] text-muted-foreground leading-snug">{KIND_HINT[hotspot.kind]}</p>
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] text-muted-foreground/70 shrink-0">{hotspot.folderName} · hostnames:</span>
+        <span className="text-[10px] text-muted-foreground/70 shrink-0">{hotspot.folderName} · apps:</span>
         {hotspot.apps.map((app) => (
           <span
             key={app}
@@ -157,8 +157,9 @@ export function SprawlDialog({
             API Sprawl
           </DialogTitle>
           <DialogDescription>
-            One hostname counts as one app. Each row lists the exact hostnames responsible, and
-            whether they{" "}
+            Apps are identified by their declared Mule Application name where the log has it
+            (safe even behind a shared custom domain), falling back to hostname otherwise. Each
+            row lists the exact apps responsible, and whether they{" "}
             <span className="text-signal font-medium">call the same thing</span> or{" "}
             <span className="text-brand font-medium">expose the same thing</span> - either way,
             work worth consolidating.
@@ -207,9 +208,9 @@ export function SprawlDialog({
             {filtered.length === 0 && (
               <p className="text-center text-xs text-muted-foreground py-8 max-w-sm mx-auto">
                 {report.appCount <= 1
-                  ? "Only one hostname was found in this collection - upload logs from more than one app (or select multiple files on the import screen) to detect duplication across teams."
+                  ? "Only one app was found in this collection - upload logs from more than one app (or select multiple files on the import screen) to detect duplication across teams."
                   : report.hotspots.length === 0
-                    ? "No duplication found - every endpoint in this collection is unique to a single hostname."
+                    ? "No duplication found - every endpoint in this collection is unique to a single app."
                     : `No hotspots match "${q}"`}
               </p>
             )}

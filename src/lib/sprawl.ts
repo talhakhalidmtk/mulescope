@@ -2,14 +2,14 @@ import type { HttpMethod, ParsedCollection, ParsedRequest } from "./types";
 import { normalizePath } from "./mule-log-parser";
 
 /**
- * - "outbound-duplicate": multiple apps (hostnames) call this exact same
- *   downstream host+path - the same integration, built more than once. The
- *   parser already dedupes outbound calls by host+method+path, so this is a
- *   single `ParsedRequest` whose occurrences span more than one `sourceApp`.
- * - "inbound-duplicate": multiple apps (hostnames) independently expose an
- *   inbound endpoint with the same method + path shape to their own
- *   consumers - the same public endpoint, built more than once. Each app gets
- *   its own `ParsedRequest` (they have different hosts), so this groups
+ * - "outbound-duplicate": multiple apps call this exact same downstream
+ *   host+path - the same integration, built more than once. The parser
+ *   already dedupes outbound calls by host+method+path, so this is a single
+ *   `ParsedRequest` whose occurrences span more than one `sourceApp`.
+ * - "inbound-duplicate": multiple apps independently expose an inbound
+ *   endpoint with the same method + path shape to their own consumers - the
+ *   same public endpoint, built more than once. Each app gets its own
+ *   `ParsedRequest` (they have different app identities), so this groups
  *   across requests rather than within one.
  */
 export type SprawlKind = "outbound-duplicate" | "inbound-duplicate";
@@ -20,14 +20,14 @@ export interface SprawlHotspot {
   method: HttpMethod;
   path: string;
   folderName: string;
-  /** Distinct hostnames involved (one hostname is one app), sorted. */
+  /** Distinct apps involved (declared Application name, or hostname), sorted. */
   apps: string[];
   occurrenceCount: number;
 }
 
 export interface SprawlReport {
   totalEndpoints: number;
-  /** Distinct source hostnames (apps) detected across the whole collection, sorted. */
+  /** Distinct apps detected across the whole collection, sorted. */
   apps: string[];
   /** Convenience for `apps.length`. */
   appCount: number;
@@ -51,12 +51,13 @@ function signature(method: HttpMethod, pathname: string): string {
 }
 
 /**
- * Finds two kinds of API sprawl by hostname (one hostname is one app - see
- * `deriveSourceApps` in `mule-log-parser.ts`, which populates
- * `occurrences[].sourceApp`). Works on any collection that involves more than
- * one hostname, whether that came from multiple uploaded files or a single
+ * Finds two kinds of API sprawl by app identity - see `deriveSourceApps` in
+ * `mule-log-parser.ts`, which populates `occurrences[].sourceApp` from the
+ * app's declared name where available (immune to shared/custom domains),
+ * falling back to hostname. Works on any collection that involves more than
+ * one app, whether that came from multiple uploaded files or a single
  * log/paste that happens to interleave more than one app's traffic; a
- * collection with only one hostname naturally yields an empty `hotspots` list.
+ * collection with only one app naturally yields an empty `hotspots` list.
  */
 export function analyzeSprawl(collection: ParsedCollection): SprawlReport {
   const allApps = new Set<string>();

@@ -81,10 +81,10 @@ interface ReqEntry {
   corrId?: string;
   appName?: string;
   /**
-   * The exact hostname of the app this call belongs to, for cross-app sprawl
-   * detection (see `deriveSourceApps`). One hostname is one app - kept as the
-   * raw host, not a prettified label, so it's unambiguous which hostname is
-   * responsible for a given call.
+   * The identity of the Mule app this call belongs to, for cross-app sprawl
+   * detection (see `deriveSourceApps`) - the runtime's own declared
+   * Application name when available, else its hostname. Never prettified, so
+   * it's unambiguous exactly which app/hostname is responsible for a call.
    */
   sourceApp?: string;
   method: HttpMethod;
@@ -144,17 +144,29 @@ function ownHost(req: ReqEntry): string | undefined {
   return host?.split(":")[0];
 }
 
-// One hostname is one app: a LISTENER block's own host is that app's identity.
-// A REQUESTER block doesn't carry its own app's host (only the downstream
-// host it's calling), so it inherits its owning app via the Mule correlation
-// ID shared with the LISTENER call that triggered its flow - this works
-// whether the whole log came from one file, several uploaded files, or a
-// single pasted/sample blob that happens to interleave more than one app's
-// traffic, since attribution never depends on file boundaries.
-// `fallbackForIndex` is a last resort for REQUESTER blocks whose corrId has
-// no matching LISTENER in this dataset (e.g. a downstream-only excerpt) -
-// only meaningful when parsing multiple named sources.
-function deriveSourceApps(reqs: ReqEntry[], fallbackForIndex?: (i: number) => string | undefined): void {
+// One Mule application is one app. Hostname alone is not a safe proxy for
+// this: some orgs front multiple distinct apps behind one shared custom
+// domain, distinguished only by a path prefix (e.g. customdomain.tld.com/{app}),
+// so two different apps can share a hostname. Prefer signals that name the
+// application directly, in order:
+//  1. The Application name Mule itself logs on INFO lines (`flowMeta`,
+//     correlated by corrId) - the runtime's own ground truth, immune to
+//     however the domain/hostname happens to be set up.
+//  2. `req.appName` - a REQUESTER trigger line embeds its owning app directly
+//     (`[x-acme-orders-api].http.requester...`), no correlation needed.
+//  3. The LISTENER's own host (correlated by corrId for REQUESTER blocks) -
+//     falls back to hostname only when the log lacks the INFO metadata above.
+//  4. `fallbackForIndex` - last resort for a REQUESTER block whose corrId
+//     matches nothing in this dataset (e.g. a downstream-only excerpt); only
+//     meaningful when parsing multiple named sources.
+// All of this works whether the whole log came from one file, several
+// uploaded files, or a single pasted/sample blob that interleaves more than
+// one app's traffic, since none of it depends on file boundaries.
+function deriveSourceApps(
+  reqs: ReqEntry[],
+  flowMeta: Map<string, FlowMeta>,
+  fallbackForIndex?: (i: number) => string | undefined,
+): void {
   const hostByCorrId = new Map<string, string>();
   for (const req of reqs) {
     if (req.role !== "LISTENER" || !req.corrId) continue;
@@ -162,12 +174,31 @@ function deriveSourceApps(reqs: ReqEntry[], fallbackForIndex?: (i: number) => st
     if (host) hostByCorrId.set(req.corrId.toLowerCase(), host);
   }
 
+  const declaredAppOf = (req: ReqEntry): string | undefined =>
+    (req.corrId ? flowMeta.get(req.corrId.toLowerCase())?.app : undefined) ?? req.appName;
+  const hostOf = (req: ReqEntry): string | undefined =>
+    req.role === "LISTENER" ? ownHost(req) : (req.corrId ? hostByCorrId.get(req.corrId.toLowerCase()) : undefined);
+
+  // Learn hostname -> declared-app-name wherever a single call has both
+  // signals, so calls on the same host that lack their OWN INFO metadata
+  // (e.g. a block with no matching `[Application: ...]` line) still resolve
+  // to the same canonical app instead of splintering into "declared name" vs
+  // "raw hostname" as if they were two different apps.
+  const appNameByHost = new Map<string, string>();
+  for (const req of reqs) {
+    const app = declaredAppOf(req);
+    const host = app ? hostOf(req) : undefined;
+    if (host && !appNameByHost.has(host)) appNameByHost.set(host, app!);
+  }
+
   reqs.forEach((req, i) => {
-    const host = req.role === "LISTENER" ? ownHost(req) : (req.corrId ? hostByCorrId.get(req.corrId.toLowerCase()) : undefined);
-    // The raw hostname is the app identity - kept exact (not prettified) so the
-    // sprawl UI can show precisely which hostname is responsible for a call.
-    if (host) req.sourceApp = host;
-    else if (fallbackForIndex) req.sourceApp = fallbackForIndex(i);
+    const app = declaredAppOf(req);
+    if (app) { req.sourceApp = app; return; }
+
+    const host = hostOf(req);
+    if (host) { req.sourceApp = appNameByHost.get(host) ?? host; return; }
+
+    if (fallbackForIndex) req.sourceApp = fallbackForIndex(i);
   });
 }
 
@@ -613,9 +644,10 @@ export function parseMuleLog(raw: string, sourceName = "mule.log"): ParsedCollec
 
   scanLines(raw.split(/\r?\n/), reqs, ress, state, flowMeta);
   // No filename fallback here - a single blob's app attribution comes purely
-  // from its own LISTENER hosts, so a paste/sample log that happens to
-  // interleave more than one app's traffic still surfaces sprawl correctly.
-  deriveSourceApps(reqs);
+  // from its own declared Application name / hostname, so a paste/sample log
+  // that happens to interleave more than one app's traffic still surfaces
+  // sprawl correctly.
+  deriveSourceApps(reqs, flowMeta);
 
   const baseName = sourceName.replace(/\.[^.]+$/, "");
   return buildCollection(reqs, ress, `${baseName} - Extracted Collection`);
@@ -647,7 +679,7 @@ export function parseMuleLogSources(sources: { name: string; raw: string }[]): P
   // Fallback only kicks in for a REQUESTER block whose corrId has no matching
   // LISTENER anywhere in the combined dataset - attribute it to whichever
   // uploaded file it was found in.
-  deriveSourceApps(reqs, (i) => ranges.find((r) => i >= r.start && i < r.end)?.fallback);
+  deriveSourceApps(reqs, flowMeta, (i) => ranges.find((r) => i >= r.start && i < r.end)?.fallback);
 
   const name = sources.length === 1
     ? `${sources[0].name.replace(/\.[^.]+$/, "")} - Extracted Collection`
